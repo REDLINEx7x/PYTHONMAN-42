@@ -3,7 +3,7 @@
 from enum import IntEnum
 from typing import NamedTuple
 
-
+@dataclass(frozen=True)
 class Cell(NamedTuple):
     """A position in the maze.
 
