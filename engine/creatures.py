@@ -1,7 +1,9 @@
-from engine.types import Cell, Direction
-from engine.grid import Grid
+import random
 from enum import Enum
 from engine.types import Cell, Direction
+from engine.grid import Grid
+from engine.types import Cell, Direction
+from engine.bfs import path_finding
 
 class Player:
     def __init__(self, start_cell):
@@ -49,10 +51,10 @@ class Ghost:
         self.state = GhostState.SCATTER
         self.current_direction = Direction.NORTH
 
-    def get_target_cell(self, player_position, ):
+    def get_target_cell(self, player_position):
 
         if self.state == GhostState.SCATTER:
-            return home_corner
+            return self.home_corner
         elif self.state == GhostState.CHASE:
             return player_position
         elif self.state == GhostState.EATEN:
@@ -61,13 +63,48 @@ class Ghost:
             return None
 
 
-    #def update_position(self, grid, player_position):
+    def update_position(self, grid, player_position):
 
-    #    dest = self.get_target_cell(player_position)
+        dest = self.get_target_cell(player_position)
 
-    #    if dest == None:
-    #        moves = grid.open_neighbors(self.position)
-    #        for dr, c in moves:
-    #            if current_direction == Direction.NORTH:
+        if dest is None:
+            moves = grid.open_neighbors(self.position)
+            banned_direction = self.current_direction.opposite
 
+            if len(moves) > 1:
+                valid_moves = [m for m in moves if [0] != banned_direction]
+            else:
+                valid_moves = moves
+
+            chosen_direction, new_cell = random.choice(valid_moves)
+            self.current_direction = chosen_direction
+            self.position = new_cell
+
+        else:
+            path = path_finding(grid, self.position, dest)
+            if path:
+                self.current_direction = path[0]
+                self.position = grid.neighbor(self.position, self.current_direction)
+
+        if self.state == GhostState.EATEN and self.position == self.spawn_cell:
+            self.state = GhostState.SCATTER
+
+    def change_state(self, new_state):
+
+        if self.state == GhostState.EATEN:
+            return
+        else:
+            self.state = new_state
+
+
+    def ghost_die(self):
+
+        self.state = GhostState.EATEN
+
+    def check_respawn(self):
+
+        if self.state == GhostState.EATEN and self.position == self.spawn_cell:
+            self.state = GhostState.SCATTER
+            return True
+        return False
 
