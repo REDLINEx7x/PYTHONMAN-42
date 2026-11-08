@@ -42,18 +42,26 @@ class Engine:
         self._build_level()
 
 
-    #def _update(slef, dt):
+    def _update(slef, dt):
+
+        if self.state == GameState.PAUESED or self.state == GameState.GAME_WON or self.state == GameState.LEVEL_WON or self.state == GameState.GAME_OVER:
+            return
+        dt = min(dt, 0.2)
+        if self.level_timer > 0:
+            slef.level_timer -= dt
+        if self.eaten_timer > 0:
+            self.timer -= dt
+        self.player_accumulator += dt
+        self.ghost_accumulator += dt
+        current_level_config = self.config.levels[self.level - 1]
+        player_interval = current_level_config.player_speed
+        ghost_interval = current_level_config.ghost_speed
 
 
-    #    if self.state == GameState.PAUESED or self.state == GameState.GAME_WON or self.state == GameState.LEVEL_WON or self.state ==GameState.GAME_OVER:
-    #        return
-    #    if self.level_timer > 0:
-    #        slef.level_timer -= dt
-    #    if self.eaten_timer > 0:
-    #        self.timer -= dt
-    #    self.player_accumulator += dt
-    #    self.ghost_accumulator += dt
-    #    current_level_config = self.config.levels[self.level - 1]
-    #    player_interval = current_level_config.player_speed
-    #    ghost_interval = current_level_config.ghost_speed
+    def _build_level(self):
 
+        current_level_config = self.config.level[self.level - 1]
+        self.grid = maze_bank()
+
+        centre = self.grid.get_centre()
+        
