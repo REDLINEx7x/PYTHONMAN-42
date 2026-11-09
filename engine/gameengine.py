@@ -27,7 +27,7 @@ class Engine:
         self.lives = self.config.lives
         self.state = GameState.PLAYING
         self.grid = None
-        self.pacu = None
+        self.pacu: Player = None
         self.ghosts = []
         self.pacgums = set()
         self.supergums = set()
@@ -63,5 +63,7 @@ class Engine:
         current_level_config = self.config.level[self.level - 1]
         self.grid = maze_bank()
 
-        centre = self.grid.get_centre()
-        
+        centre_cell = self.grid.get_centre()
+        if len(grid.open_neighbors(centre_cell)) > 0:
+            self.pacu.start_cell = centre_cell
+:
