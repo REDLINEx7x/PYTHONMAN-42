@@ -11,17 +11,17 @@ class Player:
         self.start_cell = start_cell
         self.position = self.start_cell
         self.current_direction = Direction.EAST
-        self.next_direction = Direction.EAST
+        self.wanted_direction = Direction.EAST
         self.lives = 3
 
     def set_next_direction(self, direction):
 
-        self. next_direction = self.direction
+        self. wanted_direction = self.direction
 
     def update_position(self, grid):
 
-        if grid.can_move(self.position, self.next_direction):
-            self.current_direction = self.next_direction
+        if grid.can_move(self.position, self.wanted_direction):
+            self.current_direction = self.wanted_direction
             self.position = grid.neighbor(self.position, self.current_direction)
         elif grid.can_move(self.position, self.current_direction):
             self.position = grid.neighbor(self.position, self.current_direction)
@@ -30,7 +30,7 @@ class Player:
         self.lives -= 1
         self.position  = grid.start_cell
         self.Direction = Direction.EAST
-        self.next_direction = Direction.EAST
+        self.wanted_direction = Direction.EAST
 
     def is_dead(self):
         return self.lives <= 0
