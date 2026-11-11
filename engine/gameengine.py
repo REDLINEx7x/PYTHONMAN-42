@@ -39,11 +39,10 @@ class Engine:
         self.speed = False
         self.freeze = False
         self.invincible = False
-
         self._build_level()
 
 
-    def _update(slef, dt):
+    def _update(self, dt):
 
         if self.state != GameState.PLAYING:
             return
@@ -59,13 +58,32 @@ class Engine:
         current_ghost_interval = GHOST_INTERVAL
         while self.player_accumulator >= current_player_interval:
             self.player_accumulator -= current_player_interval
-            slef._move_player()
+            self._move_player()
         while self.ghost_accumulator >= GHOST_INTERVAL:
             self.ghost_accumulator -= GHOST_INTERVAL
+            self.move_ghosts()
 
-
-
-
+        if self.eaten_timer <= 0:
+            for ghost in self.ghosts:
+                if ghost.state == GhostState.FRIGHTENED:
+                    ghost.change_state(GhostState.SCATTER)
+        if self.level_timer <= 0:
+            self.lives -= 1
+            if self.lives > 0:
+                self.pacu.position = self.pacu.start_cell
+                self.level_timer = self.config.level_timeout
+                for ghost in self.ghosts:
+                    ghost.position = ghost.home_corner
+                    ghost.change_state(GhostState.SCATTER)
+            else:
+                self.state=GameState.GAME_OVER
+        if len(self.pacgums) == 0 and len(self.supergums) == 0:
+            if self.level == len(self.config.levels):
+                self.state = GameState.GAME_WON
+            else:
+                self.state = GameState.LEVEL_WON
+                self.level += 1
+                self._build_level()
 
     def _move_player(self):
 
@@ -88,16 +106,25 @@ class Engine:
         for ghost in self.ghosts:
             if ghost.position == self.pacu.position:
                 self._handle_collision(ghost)
+                break
 
+    def move_ghosts(self):
+
+        for ghost in self.ghosts:
+            ghost.update_position(self.grid, self.pacu.position)
+            if ghost.state == GhostState.EATEN:
+                ghost.check_respawn()
+            if ghost.position == self.pacu.position:
+                self._handle_collision(ghost)
+                break
 
     def _build_level(self):
 
-        current_level_config = self.config.level[self.level - 1]
+        current_level_config = self.config.levels[self.level - 1]
         self.grid = maze_bank()
 
         centre_cell = self.grid.get_centre()
-        if len(grid.open_neighbors(centre_cell)) > 0:
-            self.pacu = Player(start_cell = centre_cell)
+        self.pacu = Player(start_cell = centre_cell)
         corners = self.grid.get_corners()
         self.ghosts = [Ghost(spawn_cell=corner, home_corner=corner) for corner in corners]
 
@@ -106,15 +133,16 @@ class Engine:
         for cell in all_cells:
             if cell == self.pacu.start_cell:
                 continue
-            if cell in corners:
+            elif cell in corners:
                 self.supergums.add(cell)
-            if len(grid.open_neighbors(centre_cell)) > 0:
+            elif len(self.grid.open_neighbors(cell)) > 0:
                 self.pacgums.add(cell)
+
 
         self.level_timer = self.config.level_timeout
         self.eaten_timer = 0.0
         self.player_accumulator = 0.0
-        self.ghost_accumulator - 0.0
+        self.ghost_accumulator = 0.0
 
 #Verify reachability of pacgums
 
@@ -129,7 +157,7 @@ class Engine:
                 self.state = GameState.GAME_OVER
             else:
                 self.pacu.position = self.pacu.start_cell
-                self.wanted_direction = None
+                self.pacu.wanted_direction = None
                 for g in self.ghosts:
                     g.position = g.home_corner
                     g.change_state(GhostState.SCATTER)
