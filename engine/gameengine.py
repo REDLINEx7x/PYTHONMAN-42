@@ -2,6 +2,7 @@ from enum import Enum
 from engine.grid import Grid
 from engine.creatures import Player, Ghost
 from engine.bfs import path_finding
+from snapshot import GameSnapshot
 
 PLAYER_INTERVAL = 0.15
 GHOST_INTERVAL = 0.2
@@ -166,4 +167,36 @@ class Engine:
             ghost.ghost_die()
             self.score += 200
 
+    def get_snapshot(self):
 
+        ghosts_data = [(g.position, g.state) for g in self.ghosts]
+        return GameSnapshot(state=self.state,
+                            score=self.score,
+                            lives=self.lives,
+                            level=self.level,
+                            pacu_position=self.pacu.position,
+                            pacu_direction=self.pacu.current_direction,
+                            ghosts=ghosts_data,
+                            pacgums=frozenset(self.pacgums),
+                            supergums=frozenset(self.supergums))
+
+    def set_direction(self, direction):
+        if self.pacu and self.state == GameState.PLAYING:
+            self.pacu.wanted_direction = direction
+
+    def toggle_invincible(self):
+        self.invincible = not self.invincible
+
+    def toggle_freeze(self):
+        self.freeze = not self.freeze
+
+    def toggle_speed(self):
+        self.speed = not self.speed
+
+    def pause_game(self):
+        if self.state == GameState.PLAYING:
+            self.state = GameState.PAUSED
+
+    def resume_game(self):
+        if self.state == GameState.PAUSED:
+            self.state = GameState.PLAYING
