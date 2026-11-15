@@ -238,7 +238,6 @@ class Renderer:
                 elif self.current_screen == "menu":
                     if (
                         event.type == pygame.MOUSEBUTTONDOWN
-                      
                         and event.button == 1
                     ):
                         if self.start_rect.collidepoint(event.pos):
@@ -261,7 +260,6 @@ class Renderer:
                 elif self.current_screen == "new_player":
                     if event.type == pygame.KEYDOWN:
                         self.handle_name_input(event)
-
 
             # 2. Clear window
             self.screen.fill((0, 0, 0))
