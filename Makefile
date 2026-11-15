@@ -5,7 +5,7 @@ install:
 	@uv sync
 
 run:
-	@$(PYTHON) main.py $(FILE)
+	@$(PYTHON) pac-man.py $(FILE)
 
 debug:
 	@$(PYTHON) -m pdb main.py $(FILE)
