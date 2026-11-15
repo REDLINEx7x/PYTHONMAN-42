@@ -3,7 +3,7 @@ import json
 
 
 class HighscoreManager:
-    """Manage player highscores."""
+    """Manage player's highscores."""
 
     def __init__(self, filename: str) -> None:
         self.filename = filename
