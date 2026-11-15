@@ -1,29 +1,43 @@
 
 import pygame
-
 from shell.highscores import HighscoreManager
+from shell.config import Config
+from shell.game_renderer import GameRenderer
 
 
 class Renderer:
-    def __init__(self, highscore_filename: str = "highscores.json") -> None:
+    def __init__(self, config: Config) -> None:
+        # Initialize pygame
         pygame.init()
 
+        # Configuration
+        self.config = config
+
+        # Window
         self.screen = pygame.display.set_mode((800, 600))
         pygame.display.set_caption("Pac-Man 42")
         self.clock = pygame.time.Clock()
 
+        self.game_renderer = GameRenderer(self.screen)
+
+        # Application state
         self.current_screen = "menu"
         self.player_name = ""
         self.final_score = 0
         self.message = ""
 
-        self.highscore_manager = HighscoreManager(highscore_filename)
+        # Highscore manager
+        self.highscore_manager = HighscoreManager(
+            self.config.highscore_filename
+        )
         self.highscore_manager.load()
 
+        # Fonts
         self.font = pygame.font.Font(None, 36)
         self.title_font = pygame.font.Font(None, 70)
         self.small_font = pygame.font.Font(None, 26)
 
+        # Menu text surfaces
         self.title = self.title_font.render(
             "PAC-MAN 42", True, (166, 166, 70)
         )
@@ -33,20 +47,35 @@ class Renderer:
         self.high_scores = self.font.render(
             "HIGH SCORES", True, (212, 212, 184)
         )
-        self.quit_game = self.font.render(
-            "QUIT", True, (212, 212, 184)
-        )
         self.instructions_text = self.font.render(
             "INSTRUCTIONS", True, (212, 212, 184)
         )
+        self.quit_game = self.font.render(
+            "QUIT", True, (212, 212, 184)
+        )
 
+        # Menu rectangles
         self.title_rect = self.title.get_rect(center=(400, 70))
-        self.start_rect = self.start_game_text.get_rect(center=(400, 200))
-        self.scores_rect = self.high_scores.get_rect(center=(400, 280))
+        self.start_rect = self.start_game_text.get_rect(
+            center=(400, 200)
+        )
+        self.scores_rect = self.high_scores.get_rect(
+            center=(400, 280)
+        )
         self.instructions_rect = self.instructions_text.get_rect(
+            center=(400, 350)
+        )
+        self.quit_rect = self.quit_game.get_rect(
             center=(400, 430)
         )
-        self.quit_rect = self.quit_game.get_rect(center=(400, 350))
+
+    def draw_game(self) -> None:
+        self.game_renderer.draw_hud(
+            score=2500,
+            lives=3,
+            level=1,
+            time_left=90,
+        )
 
     def draw_text(
         self,
@@ -226,6 +255,38 @@ class Renderer:
                 self.player_name += character
                 self.message = ""
 
+    def draw_instructions(self) -> None:
+        """Draw the game instructions screen."""
+        title = self.title_font.render(
+            "HOW TO PLAY", True, (255, 255, 0)
+        )
+        title_rect = title.get_rect(center=(400, 80))
+        self.screen.blit(title, title_rect)
+
+        instructions = [
+            "MOVE WITH ARROW KEYS OR WASD",
+            "EAT PACGUMS TO EARN POINTS",
+            "AVOID THE GHOSTS",
+            "EAT SUPER PACGUMS TO EAT GHOSTS",
+            "COMPLETE ALL LEVELS TO WIN",
+        ]
+
+        y = 180
+
+        for instruction in instructions:
+            text = self.font.render(
+                instruction, True, (212, 212, 184)
+            )
+            text_rect = text.get_rect(center=(400, y))
+            self.screen.blit(text, text_rect)
+            y += 60
+
+        back_text = self.font.render(
+            "PRESS ESC TO RETURN", True, (166, 166, 70)
+        )
+        back_rect = back_text.get_rect(center=(400, 540))
+        self.screen.blit(back_text, back_rect)
+
     def run(self) -> None:
         running = True
 
@@ -261,6 +322,13 @@ class Renderer:
                     if event.type == pygame.KEYDOWN:
                         self.handle_name_input(event)
 
+                elif self.current_screen == "instructions":
+                    if (
+                        event.type == pygame.KEYDOWN
+                        and event.key == pygame.K_ESCAPE
+                    ):
+                        self.current_screen = "menu"
+
             # 2. Clear window
             self.screen.fill((0, 0, 0))
 
@@ -274,6 +342,12 @@ class Renderer:
             elif self.current_screen == "new_player":
                 self.draw_name_input()
 
+            elif self.current_screen == "instructions":
+                self.draw_instructions()
+
+            elif self.current_screen == "playing":
+                self.draw_game()
+
             # 4. Update window
             pygame.display.update()
             self.clock.tick(60)
@@ -282,5 +356,13 @@ class Renderer:
 
 
 if __name__ == "__main__":
-    renderer = Renderer()
-    renderer.run()
+    try:
+        renderer = Renderer()
+        renderer.run()
+
+    except KeyboardInterrupt:
+        print("\nProgram interrupted by user (Ctrl+C).")
+
+    finally:
+        pygame.quit()
+
