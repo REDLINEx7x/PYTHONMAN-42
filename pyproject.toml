@@ -1,0 +1,8 @@
+[project]
+name = "pythonman-42"
+version = "0.1.0"
+description = "Pac-Man game for the 42 curriculum"
+requires-python = ">=3.10"
+dependencies = [
+    "pygame-ce",
+]
