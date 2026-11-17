@@ -5,4 +5,8 @@ description = "Pac-Man game for the 42 curriculum"
 requires-python = ">=3.10"
 dependencies = [
     "pygame-ce",
+    "mazegenerator",
 ]
+
+[tool.uv.sources]
+mazegenerator = { path = "mazegenerator-00001/mazegenerator-2.1.0-py3-none-any.whl" }
