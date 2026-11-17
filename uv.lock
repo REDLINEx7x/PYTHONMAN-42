@@ -3,6 +3,14 @@ revision = 3
 requires-python = ">=3.10"
 
 [[package]]
+name = "mazegenerator"
+version = "2.1.0"
+source = { path = "mazegenerator-00001/mazegenerator-2.1.0-py3-none-any.whl" }
+wheels = [
+    { filename = "mazegenerator-2.1.0-py3-none-any.whl", hash = "sha256:98e12f7e989cef03dd4411657d7bee12653804aee87a568eddfaf21436ffd4aa" },
+]
+
+[[package]]
 name = "pygame-ce"
 version = "2.5.8"
 source = { registry = "https://pypi.org/simple" }
@@ -61,8 +69,12 @@ name = "pythonman-42"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "mazegenerator" },
     { name = "pygame-ce" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pygame-ce" }]
+requires-dist = [
+    { name = "mazegenerator", path = "mazegenerator-00001/mazegenerator-2.1.0-py3-none-any.whl" },
+    { name = "pygame-ce" },
+]
