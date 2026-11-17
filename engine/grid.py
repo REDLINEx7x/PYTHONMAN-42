@@ -1,5 +1,5 @@
-from engine.types import Cell, Direction
-from errors import GridError
+from engine.models import Cell, Direction
+from engine.errors import GridError
 
 
 class Grid:

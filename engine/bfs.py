@@ -1,5 +1,5 @@
 from collections import deque
-from engine.types import Cell, Direction
+from engine.models import Cell, Direction
 from engine.grid import Grid
 
 def path_finding(grid, start, target):

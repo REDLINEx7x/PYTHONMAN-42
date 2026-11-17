@@ -1,9 +1,10 @@
 """Basic types shared by the whole engine: cells and directions."""
 
-from enum import IntEnum
+from enum import IntEnum, Enum
 from typing import NamedTuple
+#from dataclasses import dataclass
 
-@dataclass(frozen=True)
+#@dataclass(frozen=True)
 class Cell(NamedTuple):
     """A position in the maze.
 
@@ -59,3 +60,10 @@ _OPPOSITES: dict[Direction, Direction] = {
 }
 
 
+class GameState(Enum):
+
+    PLAYING = 1
+    PAUSED = 2
+    LEVEL_WON = 3
+    GAME_WON = 4
+    GAME_OVER = 5
