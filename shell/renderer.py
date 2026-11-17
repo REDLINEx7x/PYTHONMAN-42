@@ -11,6 +11,8 @@ class Renderer:
     def __init__(self, config: Config) -> None:
         # Initialize pygame
         pygame.init()
+        self.is_paused = False
+        self.selected_option = 0
 
         # Configuration
         self.config = config
@@ -89,7 +91,20 @@ class Renderer:
             (0, self.grid.get_width() - 1),
             (self.grid.get_height() - 1, self.grid.get_width() - 1),
         ]
+        pacgums = frozenset({
+            (2, 2),
+            (2, 3),
+            (2, 4),
+            (2, 5),
+        })
+
+        supergums = frozenset({
+            (1, 1),
+            (13, 13),
+        })
         self.game_renderer.draw_maze(self.grid)
+        self.game_renderer.draw_pacgums(pacgums)
+        self.game_renderer.draw_supergums(supergums)
         self.game_renderer.draw_pacman(
             start_row,
             start_col,
@@ -101,6 +116,8 @@ class Renderer:
             level=1,
             time_left=90,
         )
+        if self.is_paused:
+            self.draw_pause()
 
     def draw_text(
         self,
@@ -114,10 +131,22 @@ class Renderer:
 
     def draw_menu(self) -> None:
         self.screen.blit(self.title, self.title_rect)
-        self.screen.blit(self.start_game_text, self.start_rect)
-        self.screen.blit(self.high_scores, self.scores_rect)
-        self.screen.blit(self.instructions_text, self.instructions_rect)
-        self.screen.blit(self.quit_game, self.quit_rect)
+        menu_items = [
+            (self.start_game_text, self.start_rect),
+            (self.high_scores, self.scores_rect),
+            (self.instructions_text, self.instructions_rect),
+            (self.quit_game, self.quit_rect),
+        ]
+        for index, (text, rect) in enumerate(menu_items):
+            self.screen.blit(text, rect)
+
+            if index == self.selected_option:
+                pygame.draw.rect(
+                    self.screen,
+                    (255, 255, 0),
+                    rect.inflate(20, 10),
+                    2,
+                )
 
     def draw_highscores(self) -> None:
         heading = self.title_font.render(
@@ -243,6 +272,17 @@ class Renderer:
         # self.message = ""
         # self.current_screen = "new_player"
 
+    def activate_menu_option(self, option: int) -> bool:
+        if option == 0:
+            self.start_game()
+        elif option == 1:
+            self.current_screen = "highscores"
+        elif option == 2:
+            self.current_screen = "instructions"
+        elif option == 3:
+            return False
+        return True
+
     def handle_name_input(self, event: pygame.event.Event) -> None:
         if event.key == pygame.K_ESCAPE:
             self.current_screen = "menu"
@@ -313,6 +353,36 @@ class Renderer:
         back_rect = back_text.get_rect(center=(400, 540))
         self.screen.blit(back_text, back_rect)
 
+    def draw_pause(self) -> None:
+        # Semi-transparent dark overlay
+        overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        self.screen.blit(overlay, (0, 0))
+
+        # PAUSED heading
+        heading = self.title_font.render(
+            "PAUSED", True, (255, 255, 0)
+        )
+        heading_rect = heading.get_rect(center=(400, 75))
+        self.screen.blit(heading, heading_rect)
+
+        # Pause symbol
+        pygame.draw.rect(
+            self.screen, (255, 255, 0),
+            (370, 250, 15, 60)
+        )
+        pygame.draw.rect(
+            self.screen, (255, 255, 0),
+            (415, 250, 15, 60)
+        )
+
+        # Resume instruction
+        text = self.font.render(
+            "Press p to Resume", True, (255, 255, 255)
+        )
+        text_rect = text.get_rect(center=(400, 370))
+        self.screen.blit(text, text_rect)
+
     def run(self) -> None:
         running = True
 
@@ -323,19 +393,32 @@ class Renderer:
                     running = False
 
                 elif self.current_screen == "menu":
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_DOWN:
+                            self.selected_option = (
+                                self.selected_option + 1
+                                ) % 4
+
+                        elif event.key == pygame.K_UP:
+                            self.selected_option = (
+                                self.selected_option - 1
+                                ) % 4
+                        elif event.key == pygame.K_RETURN:
+                            running = self.activate_menu_option(
+                                self.selected_option
+                            )
                     if (
                         event.type == pygame.MOUSEBUTTONDOWN
                         and event.button == 1
                     ):
                         if self.start_rect.collidepoint(event.pos):
-                            self.start_game()
-
+                            running = self.activate_menu_option(0)
                         elif self.scores_rect.collidepoint(event.pos):
-                            self.current_screen = "highscores"
+                            running = self.activate_menu_option(1)
                         elif self.instructions_rect.collidepoint(event.pos):
-                            self.current_screen = "instructions"
+                            running = self.activate_menu_option(2)
                         elif self.quit_rect.collidepoint(event.pos):
-                            running = False
+                            running = self.activate_menu_option(3)
 
                 elif self.current_screen == "highscores":
                     if (
@@ -354,6 +437,27 @@ class Renderer:
                         and event.key == pygame.K_ESCAPE
                     ):
                         self.current_screen = "menu"
+                elif self.current_screen == "playing":
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_UP:
+                            print("UP")
+
+                        elif event.key == pygame.K_DOWN:
+                            print("DOWN")
+
+                        elif event.key == pygame.K_LEFT:
+                            print("LEFT")
+
+                        elif event.key == pygame.K_RIGHT:
+                            print("RIGHT")
+
+                        elif event.key == pygame.K_p:
+                            if self.is_paused is False:
+                                self.is_paused = True
+                                print("PAUSE")
+                            else:
+                                self.is_paused = False
+                                print("RESUME")
 
             # 2. Clear window
             self.screen.fill((0, 0, 0))
