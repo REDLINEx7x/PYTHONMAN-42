@@ -3,6 +3,8 @@ import pygame
 from shell.highscores import HighscoreManager
 from shell.config import Config
 from shell.game_renderer import GameRenderer
+from mazegenerator import MazeGenerator
+from engine.grid import Grid
 
 
 class Renderer:
@@ -19,6 +21,15 @@ class Renderer:
         self.clock = pygame.time.Clock()
 
         self.game_renderer = GameRenderer(self.screen)
+
+        generator = MazeGenerator(
+            size=(15, 15),
+            perfect=False,
+            seed=42,
+        )
+        generator.generate(seed=42)
+
+        self.grid = Grid(15, 15, generator.maze)
 
         # Application state
         self.current_screen = "menu"
@@ -70,6 +81,20 @@ class Renderer:
         )
 
     def draw_game(self) -> None:
+        start_row = self.grid.get_height() // 2
+        start_col = self.grid.get_width() // 2
+        ghosts = [
+            (0, 0),
+            (self.grid.get_height() - 1, 0),
+            (0, self.grid.get_width() - 1),
+            (self.grid.get_height() - 1, self.grid.get_width() - 1),
+        ]
+        self.game_renderer.draw_maze(self.grid)
+        self.game_renderer.draw_pacman(
+            start_row,
+            start_col,
+        )
+        self.game_renderer.draw_ghosts(ghosts)
         self.game_renderer.draw_hud(
             score=2500,
             lives=3,
@@ -212,10 +237,11 @@ class Renderer:
     def start_game(self) -> None:
         # TEMPORARY TEST:
         # Replace with the real game engine later.
-        self.final_score = 2500
-        self.player_name = ""
-        self.message = ""
-        self.current_screen = "new_player"
+        self.current_screen = "playing"
+        # self.final_score = 2500
+        # self.player_name = ""
+        # self.message = ""
+        # self.current_screen = "new_player"
 
     def handle_name_input(self, event: pygame.event.Event) -> None:
         if event.key == pygame.K_ESCAPE:
@@ -365,4 +391,3 @@ if __name__ == "__main__":
 
     finally:
         pygame.quit()
-
