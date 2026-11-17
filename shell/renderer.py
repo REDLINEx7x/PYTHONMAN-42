@@ -267,10 +267,6 @@ class Renderer:
         # TEMPORARY TEST:
         # Replace with the real game engine later.
         self.current_screen = "playing"
-        # self.final_score = 2500
-        # self.player_name = ""
-        # self.message = ""
-        # self.current_screen = "new_player"
 
     def activate_menu_option(self, option: int) -> bool:
         if option == 0:
