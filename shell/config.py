@@ -41,6 +41,10 @@ class Config:
         ]
     )
 
+    @property
+    def level_timeout(self) -> int:
+        return self.level_max_time
+
 
 class ConfigLoader:
     """Read, validate, and normalize a Pac-Man configuration file."""
