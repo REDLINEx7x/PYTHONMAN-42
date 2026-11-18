@@ -41,7 +41,7 @@ class Grid:
     def get_width(self):
             return self._width
 
-    def in_bounds(self, cell):
+    def in_bounds(self, cell: Cell):
 
         if cell.row < 0 or cell.row > self._height - 1 or cell.col < 0 or cell.col > self._width - 1:
             return False

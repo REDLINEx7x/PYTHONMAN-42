@@ -80,12 +80,13 @@ class Engine:
 
         pacgums: set[Cell] = set()
         supergums: set[Cell] = set()
-        for cell in grid.get_all_cells():
+        reachable = self._get_reachable_cells(grid, player.start_cell)
+        for cell in reachable:
             if cell == player.start_cell:
                 continue
             if cell in corners:
                 supergums.add(cell)
-            elif len(grid.open_neighbors(cell)) > 0:
+            else:
                 pacgums.add(cell)
 
         return LevelData(grid, player, ghosts, pacgums, supergums)
@@ -259,3 +260,18 @@ class Engine:
     def resume_game(self):
         if self.state == GameState.PAUSED:
             self.state = GameState.PLAYING
+
+    def _get_reachable_cells(self, grid: Grid, start: Cell) -> set[Cell]:
+        reachable: set[Cell] = {start}
+        stack: list[Cell] = [start]
+
+        while stack:
+            current = stack.pop()
+            for _ ,neighbor in grid.open_neighbors(current):
+                if neighbor not in reachable:
+                    reachable.add(neighbor)
+                    stack.append(neighbor)
+
+        return reachable
+
+
