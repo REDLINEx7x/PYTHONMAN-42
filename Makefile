@@ -7,10 +7,10 @@ install:
 	@uv sync
 
 run:
-	@$(PYTHON) main.py $(FILE)
+	@$(PYTHON) pac-man.py $(FILE)
 
 debug:
-	@$(PYTHON) -m pdb main.py $(FILE)
+	@$(PYTHON) -m pdb pac-man.py $(FILE)
 
 clean:
 	@rm -rf __pycache__ .mypy_cache
