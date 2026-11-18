@@ -5,6 +5,8 @@ from shell.config import Config
 from shell.game_renderer import GameRenderer
 from mazegenerator import MazeGenerator
 from engine.grid import Grid
+from engine.gameengine import Engine
+from engine.models import Direction
 
 
 class Renderer:
@@ -83,39 +85,37 @@ class Renderer:
         )
 
     def draw_game(self) -> None:
-        start_row = self.grid.get_height() // 2
-        start_col = self.grid.get_width() // 2
-        ghosts = [
-            (0, 0),
-            (self.grid.get_height() - 1, 0),
-            (0, self.grid.get_width() - 1),
-            (self.grid.get_height() - 1, self.grid.get_width() - 1),
-        ]
-        pacgums = frozenset({
-            (2, 2),
-            (2, 3),
-            (2, 4),
-            (2, 5),
-        })
+        snapshot = self.engine.get_snapshot()
+        start_row, start_col = snapshot.pacu_position
 
-        supergums = frozenset({
-            (1, 1),
-            (13, 13),
-        })
-        self.game_renderer.draw_maze(self.grid)
-        self.game_renderer.draw_pacgums(pacgums)
-        self.game_renderer.draw_supergums(supergums)
+        ghosts = [
+            position
+            for position, state in snapshot.ghosts
+        ]
+
+        self.game_renderer.draw_maze(self.engine.grid)
+        self.game_renderer.draw_pacgums(snapshot.pacgums)
+        self.game_renderer.draw_supergums(snapshot.supergums)
         self.game_renderer.draw_pacman(
             start_row,
             start_col,
         )
+
         self.game_renderer.draw_ghosts(ghosts)
         self.game_renderer.draw_hud(
-            score=2500,
-            lives=3,
-            level=1,
-            time_left=90,
+            score=snapshot.score,
+            lives=snapshot.lives,
+            level=snapshot.level,
+            time_left=int(self.engine.level_timer),
         )
+
+        self.draw_text(
+            "Press P to Pause | ESC to return to Menu",
+            160,
+            560,
+            (166, 166, 70),
+        )
+
         if self.is_paused:
             self.draw_pause()
 
@@ -264,9 +264,14 @@ class Renderer:
             )
 
     def start_game(self) -> None:
+        self.engine = Engine(self.config)
+        self.current_screen = "playing"
+        self.is_paused = False
+        self.player_name = ""
+        self.message = ""
         # TEMPORARY TEST:
         # Replace with the real game engine later.
-        self.current_screen = "playing"
+        # self.current_screen = "playing"
 
     def activate_menu_option(self, option: int) -> bool:
         if option == 0:
@@ -376,6 +381,12 @@ class Renderer:
         text = self.font.render(
             "Press p to Resume", True, (255, 255, 255)
         )
+        self.draw_text(
+            "Press ESC to return to Menu",
+            245,
+            420,
+            (166, 166, 70),
+        )
         text_rect = text.get_rect(center=(400, 370))
         self.screen.blit(text, text_rect)
 
@@ -435,25 +446,33 @@ class Renderer:
                         self.current_screen = "menu"
                 elif self.current_screen == "playing":
                     if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_UP:
+                        if event.key == pygame.K_ESCAPE:
+                            self.current_screen = "menu"
+                            self.is_paused = False
+
+                        elif event.key == pygame.K_UP and not self.is_paused:
+                            self.engine.set_direction(Direction.NORTH)
                             print("UP")
 
-                        elif event.key == pygame.K_DOWN:
+                        elif event.key == pygame.K_DOWN and not self.is_paused:
+                            self.engine.set_direction(Direction.SOUTH)
                             print("DOWN")
 
-                        elif event.key == pygame.K_LEFT:
+                        elif event.key == pygame.K_LEFT and not self.is_paused:
+                            self.engine.set_direction(Direction.WEST)
                             print("LEFT")
 
-                        elif event.key == pygame.K_RIGHT:
+                        elif event.key == pygame.K_RIGHT and not \
+                                self.is_paused:
+                            self.engine.set_direction(Direction.EAST)
                             print("RIGHT")
 
                         elif event.key == pygame.K_p:
-                            if self.is_paused is False:
-                                self.is_paused = True
-                                print("PAUSE")
+                            self.is_paused = not self.is_paused
+                            if self.is_paused:
+                                self.engine.pause_game()
                             else:
-                                self.is_paused = False
-                                print("RESUME")
+                                self.engine.resume_game()
 
             # 2. Clear window
             self.screen.fill((0, 0, 0))
@@ -476,7 +495,9 @@ class Renderer:
 
             # 4. Update window
             pygame.display.update()
-            self.clock.tick(60)
+            dt = self.clock.tick(60) / 1000.0
+            if self.current_screen == "playing" and not self.is_paused:
+                self.engine.dt_update(dt)
 
         pygame.quit()
 
