@@ -1,6 +1,6 @@
 import pygame
 from engine.grid import Grid
-from engine.types import Cell, Direction
+from engine.models import Cell, Direction
 
 
 class GameRenderer:
