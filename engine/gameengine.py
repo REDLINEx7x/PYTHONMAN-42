@@ -232,6 +232,7 @@ class Engine:
                             score=self.score,
                             lives=self.lives,
                             level=self.level,
+                            level_timeout=self.level_timer,
                             pacu_position=self.pacu.position,
                             pacu_direction=self.pacu.current_direction,
                             ghosts=ghosts_data,

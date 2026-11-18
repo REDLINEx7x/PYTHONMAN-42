@@ -10,6 +10,7 @@ class GameSnapshot:
     score: int
     lives: int
     level: int
+    level_timeout: float
     pacu_position: Tuple[int, int]
     pacu_direction: Direction
     ghosts: List[Tuple[Tuple[int, int], GhostState]]

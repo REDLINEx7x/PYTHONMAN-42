@@ -21,20 +21,3 @@ def _generate_grid(width: int, height: int, seed: int) -> Grid:
         raise MazeAdapterError(f"Maze failed ({width}x{height}, seed={seed}")
 
 
-#if __name__ == "__main__":
-#    # 1. Test valid generation
-#    grid1 = generate_maze(width=15, height=11, seed=42)
-#    print(f"Generated Grid with {len(grid1.get_all_cells())} cells")
-#    print(f"Centre: {grid1.get_center()} | Corners: {grid1.get_corners()}")
-
-#    # 2. Test determinism (same seed -> identical cells)
-#    grid2 = generate_maze(width=15, height=11, seed=42)
-#    assert grid1.get_all_cells() == grid2.get_all_cells(), "Determinism check failed!"
-#    print("Determinism check: PASSED")
-
-#    # 3. Test error handling (seed <= 0 should raise MazeAdapterError)
-#    try:
-#        generate_maze(width=15, height=11, seed=0)
-#        print("Error handling check: FAILED")
-#    except MazeAdapterError as err:
-#        print(f"Error handling check: PASSED ({err})")
