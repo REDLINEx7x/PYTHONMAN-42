@@ -1,13 +1,52 @@
 import pygame
 from engine.grid import Grid
 from engine.models import Cell, Direction
+from pathlib import Path
+from engine.creatures import GhostState
 
 
 class GameRenderer:
     def __init__(self, screen: pygame.Surface) -> None:
         self.screen = screen
+        self.offset_x = 0
+        self.offset_y = 0
         self.font = pygame.font.Font(None, 36)
         self.cell_size = 25
+        self.mouth_animation_speed = 200
+
+        self.wall_color = (35, 75, 220)
+        self.wall_highlight = (100, 160, 255)
+        self.wall_thickness = 5
+        sprite_path = (
+            Path(__file__).resolve().parent.parent
+            / "assets"
+            / "sprites"
+        )
+
+        self.pacman_sprite = pygame.image.load(
+            str(sprite_path / "pacman.png")
+        ).convert_alpha()
+        self.ghost_sprites = [
+            pygame.image.load(
+                str(sprite_path / filename)
+            ).convert_alpha()
+            for filename in (
+                "ghost_red.png",
+                "ghost_pink.png",
+                "ghost_cyan.png",
+                "ghost_orange.png",
+            )
+        ]
+        self.pacman_closed_sprite = pygame.image.load(
+            str(sprite_path / "pacman_closed.png")
+        ).convert_alpha()
+        self.frightened_sprite = pygame.image.load(
+            str(sprite_path / "ghost_frightened.png")
+        ).convert_alpha()
+
+        self.eaten_sprite = pygame.image.load(
+            str(sprite_path / "ghost_eaten.png")
+        ).convert_alpha()
 
     def draw_hud(
         self,
@@ -15,110 +54,297 @@ class GameRenderer:
         lives: int,
         level: int,
         time_left: int,
+        status: str = "PLAYING",
     ) -> None:
+        screen_width = self.screen.get_width()
+
+        margin = 30
+        gap = 12
+        box_height = 70
+        box_width = (screen_width - 2 * margin - 4 * gap) // 5
+
         values = [
-            (f"SCORE: {score}", 20),
-            (f"LIVES: {lives}", 220),
-            (f"LEVEL: {level}", 420),
-            (f"TIME: {time_left}", 600),
+            ("SCORE", f"{score:06d}"),
+            ("LIVES", str(lives)),
+            ("LEVEL", f"{level:02d}"),
+            ("TIME", f"{max(0, time_left):03d}s"),
+            ("STATUS", status),
         ]
 
-        for text, x in values:
-            surface = self.font.render(
-                text, True, (255, 255, 0)
+        label_font = pygame.font.Font(None, 25)
+        value_font = pygame.font.Font(None, 35)
+
+        for index, (label, value) in enumerate(values):
+            x = margin + index * (box_width + gap)
+            y = 20
+
+            rect = pygame.Rect(x, y, box_width, box_height)
+
+            pygame.draw.rect(
+                self.screen,
+                (25, 36, 64),
+                rect,
             )
-            self.screen.blit(surface, (x, 20))
+
+            pygame.draw.rect(
+                self.screen,
+                (75, 126, 255),
+                rect,
+                3,
+            )
+
+            pygame.draw.rect(
+                self.screen,
+                (125, 175, 255),
+                (x + 5, y + 5, box_width - 10, 2),
+            )
+
+            label_surface = label_font.render(
+                label, True, (158, 196, 255)
+            )
+            value_surface = value_font.render(
+                value, True, (255, 216, 75)
+            )
+
+            label_rect = label_surface.get_rect(
+                center=(rect.centerx, y + 20)
+            )
+            value_rect = value_surface.get_rect(
+                center=(rect.centerx, y + 48)
+            )
+
+            self.screen.blit(label_surface, label_rect)
+            self.screen.blit(value_surface, value_rect)
 
     def draw_maze(self, grid: Grid) -> None:
-        self.cell_size = self.calculate_cell_size(grid)
-        offset_x = 50
-        offset_y = 100
+        screen_width, screen_height = self.screen.get_size()
 
-        for row in range(grid.get_height()):
-            for col in range(grid.get_width()):
+        self.grid_height = grid.get_height()
+        self.grid_width = grid.get_width()
+
+        margin = 30
+        gap = 12
+        box_width = (
+            screen_width - 2 * margin - 4 * gap
+        ) // 5
+
+        # Fixed maze area under LIVES, LEVEL, TIME
+        self.maze_box_x = margin + box_width + gap
+        self.maze_box_y = 125
+        self.maze_box_width = 3 * box_width + 2 * gap
+        self.maze_box_height = max(
+            1, screen_height - self.maze_box_y - 90
+        )
+
+        # Cells fill the entire fixed maze area
+        self.cell_width = (
+            self.maze_box_width / self.grid_width
+        )
+        self.cell_height = (
+            self.maze_box_height / self.grid_height
+        )
+
+        self.offset_x = self.maze_box_x
+        self.offset_y = self.maze_box_y
+
+        self.cell_size = max(
+            1,
+            int(min(self.cell_width, self.cell_height)),
+        )
+
+        thickness = max(
+            1,
+            min(
+                self.wall_thickness,
+                int(min(self.cell_width, self.cell_height) / 5),
+            ),
+        )
+        highlight = max(1, thickness // 3)
+
+        for row in range(self.grid_height):
+            for col in range(self.grid_width):
                 cell = Cell(row, col)
                 walls = grid.walls_here(cell)
 
-                x = offset_x + col * self.cell_size
-                y = offset_y + row * self.cell_size
+                x1 = self.offset_x + round(
+                    col * self.cell_width
+                )
+                x2 = self.offset_x + round(
+                    (col + 1) * self.cell_width
+                )
+                y1 = self.offset_y + round(
+                    row * self.cell_height
+                )
+                y2 = self.offset_y + round(
+                    (row + 1) * self.cell_height
+                )
+
+                width = x2 - x1
+                height = y2 - y1
+
                 if walls & Direction.NORTH:
-                    pygame.draw.line(
+                    pygame.draw.rect(
                         self.screen,
-                        (0, 100, 255),
-                        (x, y),
-                        (x + self.cell_size, y),
-                        3,
+                        self.wall_color,
+                        (x1, y1, width, thickness),
+                    )
+                    pygame.draw.rect(
+                        self.screen,
+                        self.wall_highlight,
+                        (x1, y1, width, highlight),
                     )
 
                 if walls & Direction.EAST:
-                    pygame.draw.line(
+                    pygame.draw.rect(
                         self.screen,
-                        (0, 100, 255),
-                        (x + self.cell_size, y),
-                        (x + self.cell_size, y + self.cell_size),
-                        3,
+                        self.wall_color,
+                        (x2 - thickness, y1, thickness, height),
                     )
-                if walls & Direction.SOUTH:
-                    pygame.draw.line(
+                    pygame.draw.rect(
                         self.screen,
-                        (0, 100, 255),
-                        (x, y + self.cell_size),
-                        (x + self.cell_size, y + self.cell_size),
-                        3,
-                    )
-                if walls & Direction.WEST:
-                    pygame.draw.line(
-                        self.screen,
-                        (0, 100, 255),
-                        (x, y),
-                        (x, y + self.cell_size),
-                        3,
+                        self.wall_highlight,
+                        (x2 - highlight, y1, highlight, height),
                     )
 
-    def draw_pacman(self, row: int, col: int) -> None:
-        cell_size = self.cell_size
-        offset_x = 50
-        offset_y = 100
-        center_x = offset_x + col * cell_size + cell_size // 2
-        center_y = offset_y + row * cell_size + cell_size // 2
-        radius = cell_size // 2 - 3
-        pygame.draw.circle(
-            self.screen,
-            (255, 255, 0),
-            (center_x, center_y),
-            radius,
+                if walls & Direction.SOUTH:
+                    pygame.draw.rect(
+                        self.screen,
+                        self.wall_color,
+                        (x1, y2 - thickness, width, thickness),
+                    )
+                    pygame.draw.rect(
+                        self.screen,
+                        self.wall_highlight,
+                        (x1, y2 - highlight, width, highlight),
+                    )
+
+                if walls & Direction.WEST:
+                    pygame.draw.rect(
+                        self.screen,
+                        self.wall_color,
+                        (x1, y1, thickness, height),
+                    )
+                    pygame.draw.rect(
+                        self.screen,
+                        self.wall_highlight,
+                        (x1, y1, highlight, height),
+                    )
+
+    def draw_pacman(
+        self,
+        row: int,
+        col: int,
+        direction: Direction,
+    ) -> None:
+        animation_frame = (
+            pygame.time.get_ticks()
+            // self.mouth_animation_speed
+        ) % 2
+
+        image = (
+            self.pacman_sprite
+            if animation_frame == 0
+            else self.pacman_closed_sprite
         )
+
+        angles = {
+            Direction.EAST: 0,
+            Direction.WEST: 180,
+            Direction.NORTH: 90,
+            Direction.SOUTH: 270,
+        }
+
+        sprite_size = max(
+            1,
+            int(min(self.cell_width, self.cell_height)) - 4,
+        )
+
+        sprite = pygame.transform.scale(
+            image,
+            (sprite_size, sprite_size),
+        )
+        sprite = pygame.transform.rotate(
+            sprite,
+            angles.get(direction, 0),
+        )
+
+        center_x = self.offset_x + round(
+            (col + 0.5) * self.cell_width
+        )
+        center_y = self.offset_y + round(
+            (row + 0.5) * self.cell_height
+        )
+
+        rect = sprite.get_rect(
+            center=(center_x, center_y)
+        )
+        self.screen.blit(sprite, rect)
 
     def draw_ghosts(
         self,
-        ghosts: list[tuple[int, int]],
+        ghosts,
+        edible_timer: float,
     ) -> None:
-        cell_size = self.cell_size
-        offset_x = 50
-        offset_y = 100
+        sprite_size = max(
+            1,
+            int(min(self.cell_width, self.cell_height)) - 4,
+        )
 
-        for row, col in ghosts:
-            center_x = offset_x + col * cell_size + cell_size // 2
-            center_y = offset_y + row * cell_size + cell_size // 2
-            radius = cell_size // 2 - 3
-            pygame.draw.circle(
-                self.screen,
-                (255, 0, 0),
-                (center_x, center_y),
-                radius,
+        for index, (position, state) in enumerate(ghosts):
+            normal_sprite = self.ghost_sprites[
+                index % len(self.ghost_sprites)
+            ]
+
+            if state == GhostState.EATEN:
+                image = self.eaten_sprite
+
+            elif state == GhostState.FRIGHTENED:
+                if 0 < edible_timer <= 2.0:
+                    flash_frame = (
+                        pygame.time.get_ticks() // 200
+                    ) % 2
+
+                    image = (
+                        self.frightened_sprite
+                        if flash_frame == 0
+                        else normal_sprite
+                    )
+                else:
+                    image = self.frightened_sprite
+
+            else:
+                image = normal_sprite
+
+            sprite = pygame.transform.scale(
+                image,
+                (sprite_size, sprite_size),
             )
+
+            center_x = self.offset_x + round(
+                (position.col + 0.5) * self.cell_width
+            )
+            center_y = self.offset_y + round(
+                (position.row + 0.5) * self.cell_height
+            )
+
+            rect = sprite.get_rect(
+                center=(center_x, center_y)
+            )
+
+            self.screen.blit(sprite, rect)
 
     def draw_supergums(
         self,
         supergums: frozenset[tuple[int, int]],
     ) -> None:
-        cell_size = self.cell_size
-        offset_x = 50
-        offset_y = 100
-        for row, col in supergums:
-            center_x = offset_x + col * cell_size + cell_size // 2
-            center_y = offset_y + row * cell_size + cell_size // 2
 
+        for row, col in supergums:
+            center_x = self.offset_x + round(
+                (col + 0.5) * self.cell_width
+            )
+            center_y = self.offset_y + round(
+                (row + 0.5) * self.cell_height
+            )
             pygame.draw.circle(
                 self.screen,
                 (255, 255, 255),
@@ -130,12 +356,13 @@ class GameRenderer:
         self,
         pacgums: frozenset[tuple[int, int]],
     ) -> None:
-        cell_size = self.cell_size
-        offset_x = 50
-        offset_y = 100
         for row, col in pacgums:
-            center_x = offset_x + col * cell_size + cell_size // 2
-            center_y = offset_y + row * cell_size + cell_size // 2
+            center_x = self.offset_x + round(
+                (col + 0.5) * self.cell_width
+            )
+            center_y = self.offset_y + round(
+                (row + 0.5) * self.cell_height
+            )
 
             pygame.draw.circle(
                 self.screen,
@@ -144,15 +371,208 @@ class GameRenderer:
                 3,
             )
 
+    def draw_ghost_panel(self, ghosts) -> None:
+        screen_width, _ = self.screen.get_size()
+
+        # Same dimensions and alignment as SCORE
+        margin = 30
+        gap = 12
+        panel_width = (
+            screen_width - 2 * margin - 4 * gap
+        ) // 5
+
+        panel_height = self.maze_box_height // 2
+
+        x = margin
+        y = self.maze_box_y
+
+        panel = pygame.Rect(x, y, panel_width, panel_height)
+
+        # Same design as SCORE box
+        pygame.draw.rect(
+            self.screen, (25, 36, 64), panel
+        )
+        pygame.draw.rect(
+            self.screen, (75, 126, 255), panel, 3
+        )
+        pygame.draw.rect(
+            self.screen,
+            (125, 175, 255),
+            (x + 5, y + 5, panel_width - 10, 2),
+        )
+
+        title_font = pygame.font.Font(None, 36)
+        name_font = pygame.font.Font(None, 32)
+        state_font = pygame.font.Font(None, 26)
+
+        title = title_font.render(
+            "GHOST RADAR", True, (255, 216, 75)
+        )
+        self.screen.blit(
+            title,
+            title.get_rect(center=(panel.centerx, y + 25)),
+        )
+
+        names = ("RED", "PINK", "CYAN", "ORANGE")
+
+        # Distribute ghosts vertically inside the panel
+        content_top = y + 55
+        content_height = max(1, panel_height - 65)
+        row_spacing = content_height / 4
+
+        for index, (_, state) in enumerate(ghosts):
+            if index >= len(names):
+                break
+
+            row_y = int(
+                content_top + (index + 0.5) * row_spacing - 23
+            )
+            if state == GhostState.FRIGHTENED:
+                sprite = self.frightened_sprite
+                state_color = (100, 190, 255)
+            elif state == GhostState.EATEN:
+                sprite = self.eaten_sprite
+                state_color = (200, 200, 200)
+            else:
+                sprite = self.ghost_sprites[index]
+                state_color = (255, 180, 90)
+
+            sprite = pygame.transform.scale(
+                sprite, (42, 42)
+            )
+            self.screen.blit(sprite, (x + 18, row_y))
+
+            name = name_font.render(
+                names[index], True, (255, 255, 255)
+            )
+            status = state_font.render(
+                state.name, True, state_color
+            )
+
+            self.screen.blit(name, (x + 75, row_y))
+            self.screen.blit(status, (x + 75, row_y + 26))
+
+    def draw_cheat_panel(
+        self,
+        invincible: bool,
+        freeze: bool,
+        speed: bool,
+    ) -> None:
+        screen_width, _ = self.screen.get_size()
+
+        # Same dimensions and alignment as STATUS
+        margin = 30
+        gap = 12
+        panel_width = (
+            screen_width - 2 * margin - 4 * gap
+        ) // 5
+
+        panel_height = self.maze_box_height // 2
+
+        x = margin + 4 * (panel_width + gap)
+        y = self.maze_box_y
+
+        panel = pygame.Rect(x, y, panel_width, panel_height)
+
+        # Same design as SCORE box
+        pygame.draw.rect(
+            self.screen, (25, 36, 64), panel
+        )
+        pygame.draw.rect(
+            self.screen, (75, 126, 255), panel, 3
+        )
+        pygame.draw.rect(
+            self.screen,
+            (125, 175, 255),
+            (x + 5, y + 5, panel_width - 10, 2),
+        )
+
+        title_font = pygame.font.Font(None, 36)
+        name_font = pygame.font.Font(None, 29)
+        state_font = pygame.font.Font(None, 25)
+
+        title = title_font.render(
+            "POWER PANEL", True, (255, 216, 75)
+        )
+        self.screen.blit(
+            title,
+            title.get_rect(center=(panel.centerx, y + 25)),
+        )
+
+        cheats = [
+            ("1", "INVINCIBLE", invincible),
+            ("2", "FREEZE GHOSTS", freeze),
+            ("3", "SPEED BOOST", speed),
+        ]
+
+        # Distribute cheats vertically inside the panel
+        content_top = y + 55
+        content_height = max(1, panel_height - 65)
+        row_spacing = content_height / 3
+
+        for index, (key, name, active) in enumerate(cheats):
+            row_y = int(
+                content_top + (index + 0.5) * row_spacing - 23
+            )
+            key_rect = pygame.Rect(
+                x + 15, row_y, 40, 40
+            )
+            pygame.draw.rect(
+                self.screen, (52, 71, 108), key_rect
+            )
+            pygame.draw.rect(
+                self.screen, (107, 145, 255), key_rect, 2
+            )
+
+            key_surface = name_font.render(
+                key, True, (255, 255, 255)
+            )
+            
+            self.screen.blit(
+                key_surface,
+                key_surface.get_rect(center=key_rect.center),
+            )
+
+            name_surface = name_font.render(
+                name, True, (255, 255, 255)
+            )
+
+            status_text = "ACTIVE" if active else "OFF"
+            status_color = (
+                (73, 229, 139)
+                if active
+                else (135, 144, 163)
+            )
+
+            status_surface = state_font.render(
+                status_text, True, status_color
+            )
+            self.screen.blit(
+                name_surface, (x + 70, row_y)
+            )
+            self.screen.blit(
+                status_surface, (x + 70, row_y + 27)
+            )
+
     def calculate_cell_size(self, grid: Grid) -> int:
-        available_width = 700
-        available_height = 400
+        screen_width, screen_height = self.screen.get_size()
+
+        # Reserve space for the interface
+        side_panel_width = 250
+        top_hud_height = 110
+        bottom_panel_height = 90
+        margin = 30
+
+        available_width = (
+            screen_width - 2 * side_panel_width - 2 * margin
+        )
+
+        available_height = (
+            screen_height - top_hud_height
+            - bottom_panel_height - 2 * margin
+        )
 
         cell_width = available_width // grid.get_width()
         cell_height = available_height // grid.get_height()
 
-        cell_size = min(
-            cell_width,
-            cell_height
-        )
-        return cell_size
+        return max(1, min(cell_width, cell_height))
