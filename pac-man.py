@@ -3,24 +3,19 @@
 import sys
 
 import pygame
-from engine.grid import Grid
-from engine.gameengine import Engine
 from shell.config import ConfigLoader
 from shell.renderer import Renderer
-from engine.errors import EngineError, GridError, MazeAdapterError
 
 
 def main() -> None:
     if len(sys.argv) != 2:
-        print("Usage: python3 pac-man.py config.json")
+        print("Usage: python3 pac-man.py config.json or make run")
         return
-
-    config = ConfigLoader.load_config(sys.argv[1])
-
     try:
-        engine = Engine(config)
-    except EngineError as e:
-        print(f"Error: {e}")
+        config = ConfigLoader.load_config(sys.argv[1])
+    except ValueError as error:
+        print(f"Error: {error}")
+        return
 
     try:
         renderer = Renderer(config)
@@ -29,8 +24,6 @@ def main() -> None:
         print("\nProgram interrupted by user.")
     finally:
         pygame.quit()
-
-    
 
 
 if __name__ == "__main__":
