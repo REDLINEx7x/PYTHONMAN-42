@@ -14,9 +14,6 @@ GHOST_INTERVAL = 0.2
 GHOST_EDIBLE_INTERVAL = 0.3
 SPEED_FACTOR = 0.5
 EDIBLE_DURATION = 5.0
-POINTS_PACGUM = 10
-POINTS_SUPERGUM = 50
-POINTS_GHOST = 200
 
 
 class GameState(Enum):
@@ -159,10 +156,10 @@ class Engine:
         self.pacu.update_position(self.grid)
         if self.pacu.position in self.pacgums:
             self.pacgums.remove(self.pacu.position)
-            self.score += POINTS_PACGUM
+            self.score += self.config.points_per_pacgum
         if self.pacu.position in self.supergums:
             self.supergums.remove(self.pacu.position)
-            self.score += POINTS_SUPERGUM
+            self.score += self.config.points_per_super_pacgum
             self.edible_timer = EDIBLE_DURATION
             for ghost in self.ghosts:
                 if ghost.state != GhostState.EATEN:
@@ -187,7 +184,7 @@ class Engine:
         for ghost in here:
             if ghost.state == GhostState.FRIGHTENED:
                 ghost.ghost_die()
-                self.score += POINTS_GHOST
+                self.score += self.config.points_per_ghost
         if self.invincible:
             return False
         for ghost in here:
