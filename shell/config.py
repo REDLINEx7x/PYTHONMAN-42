@@ -66,6 +66,8 @@ class ConfigLoader:
                 return {}
 
             return data
+        except FileNotFoundError:
+            raise ValueError(f"Configuration file not found: {filename}")
 
         except (OSError, UnicodeError, json.JSONDecodeError) as error:
             print(f"Warning: Cannot load {filename}: {error}. Using defaults.")
@@ -134,8 +136,8 @@ class ConfigLoader:
                     if (
                         type(width) is not int
                         or type(height) is not int
-                        or width <= 0
-                        or height <= 0
+                        or width < 2
+                        or height < 2
                     ):
                         print(
                             f"Warning: Invalid dimensions for level {index}. "
