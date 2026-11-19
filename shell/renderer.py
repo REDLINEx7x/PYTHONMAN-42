@@ -21,7 +21,13 @@ class Renderer:
         self.config = config
 
         # Window
-        self.screen = pygame.display.set_mode((800, 600))
+        self.screen = pygame.display.set_mode(
+                (0, 0),
+                pygame.FULLSCREEN,
+                )
+        self.screen_width, self.screen_height = (
+            self.screen.get_size()
+        )
         pygame.display.set_caption("Pac-Man 42")
         self.clock = pygame.time.Clock()
 
@@ -89,53 +95,48 @@ class Renderer:
         snapshot = self.engine.get_snapshot()
         start_row, start_col = snapshot.pacu_position
 
-        ghosts = [
-            position
-            for position, state in snapshot.ghosts
-        ]
-
+        # Draw maze
         self.game_renderer.draw_maze(self.engine.grid)
+
+        # Draw collectibles
         self.game_renderer.draw_pacgums(snapshot.pacgums)
         self.game_renderer.draw_supergums(snapshot.supergums)
+
+        # Draw Pac-Man
         self.game_renderer.draw_pacman(
             start_row,
             start_col,
+            snapshot.pacu_direction,
         )
 
-        self.game_renderer.draw_ghosts(ghosts)
+        # Draw ghosts
+        self.game_renderer.draw_ghosts(
+            snapshot.ghosts,
+            self.engine.edible_timer,
+        )
+
+        # Left panel: Ghost Radar
+        self.game_renderer.draw_ghost_panel(
+            snapshot.ghosts,
+        )
+
+        # Right panel: Power Panel
+        self.game_renderer.draw_cheat_panel(
+            invincible=self.engine.invincible,
+            freeze=self.engine.freeze,
+            speed=self.engine.speed,
+        )
+
+        # Top HUD
         self.game_renderer.draw_hud(
             score=snapshot.score,
             lives=snapshot.lives,
             level=snapshot.level,
             time_left=int(self.engine.level_timer),
+            status=snapshot.state.name,
         )
 
-        # Cheat mode status indicators
-        cheats = [
-            ("1: INVINCIBLE", self.engine.invincible),
-            ("2: FREEZE", self.engine.freeze),
-            ("3: SPEED", self.engine.speed),
-        ]
-
-        x = 25
-        y = 520
-
-        for label, enabled in cheats:
-            color = (0, 255, 100) if enabled else (110, 110, 110)
-
-            text = self.font.render(label, True, color)
-            self.screen.blit(text, (x, y))
-
-            x += text.get_width() + 25
-
-        # Game controls
-        self.draw_text(
-            "Press P to Pause | ESC to return to Menu",
-            160,
-            560,
-            (166, 166, 70),
-        )
-
+        # Pause overlay
         if self.is_paused:
             self.draw_pause()
 
@@ -517,7 +518,6 @@ class Renderer:
                         and event.key == pygame.K_ESCAPE
                     ):
                         self.current_screen = "menu"
-
 
                 elif self.current_screen == "playing":
                     if event.type == pygame.KEYDOWN:
