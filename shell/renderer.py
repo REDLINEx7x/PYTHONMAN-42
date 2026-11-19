@@ -7,6 +7,7 @@ from mazegenerator import MazeGenerator
 from engine.grid import Grid
 from engine.gameengine import Engine
 from engine.models import Direction
+from engine.gameengine import Engine, GameState
 
 
 class Renderer:
@@ -109,6 +110,25 @@ class Renderer:
             time_left=int(self.engine.level_timer),
         )
 
+        # Cheat mode status indicators
+        cheats = [
+            ("1: INVINCIBLE", self.engine.invincible),
+            ("2: FREEZE", self.engine.freeze),
+            ("3: SPEED", self.engine.speed),
+        ]
+
+        x = 25
+        y = 520
+
+        for label, enabled in cheats:
+            color = (0, 255, 100) if enabled else (110, 110, 110)
+
+            text = self.font.render(label, True, color)
+            self.screen.blit(text, (x, y))
+
+            x += text.get_width() + 25
+
+        # Game controls
         self.draw_text(
             "Press P to Pause | ESC to return to Menu",
             160,
@@ -323,22 +343,24 @@ class Renderer:
                 self.message = ""
 
     def draw_instructions(self) -> None:
-        """Draw the game instructions screen."""
+        """Draw the game instructions and cheat controls."""
+
         title = self.title_font.render(
             "HOW TO PLAY", True, (255, 255, 0)
         )
-        title_rect = title.get_rect(center=(400, 80))
+        title_rect = title.get_rect(center=(400, 55))
         self.screen.blit(title, title_rect)
 
         instructions = [
-            "MOVE WITH ARROW KEYS OR WASD",
+            "ARROW KEYS - MOVE PAC-MAN",
             "EAT PACGUMS TO EARN POINTS",
             "AVOID THE GHOSTS",
             "EAT SUPER PACGUMS TO EAT GHOSTS",
             "COMPLETE ALL LEVELS TO WIN",
+            "P - PAUSE / RESUME",
         ]
 
-        y = 180
+        y = 115
 
         for instruction in instructions:
             text = self.font.render(
@@ -346,12 +368,36 @@ class Renderer:
             )
             text_rect = text.get_rect(center=(400, y))
             self.screen.blit(text, text_rect)
-            y += 60
+            y += 43
 
+        # Cheat mode section
+        cheat_title = self.font.render(
+            "CHEAT MODE", True, (255, 255, 0)
+        )
+        cheat_rect = cheat_title.get_rect(center=(400, 390))
+        self.screen.blit(cheat_title, cheat_rect)
+
+        cheats = [
+            "1 - INVINCIBILITY ON/OFF",
+            "2 - FREEZE GHOSTS ON/OFF",
+            "3 - SPEED BOOST ON/OFF",
+        ]
+
+        y = 425
+
+        for cheat in cheats:
+            text = self.font.render(
+                cheat, True, (0, 255, 150)
+            )
+            text_rect = text.get_rect(center=(400, y))
+            self.screen.blit(text, text_rect)
+            y += 35
+
+        # Return to menu
         back_text = self.font.render(
             "PRESS ESC TO RETURN", True, (166, 166, 70)
         )
-        back_rect = back_text.get_rect(center=(400, 540))
+        back_rect = back_text.get_rect(center=(400, 560))
         self.screen.blit(back_text, back_rect)
 
     def draw_pause(self) -> None:
@@ -390,6 +436,28 @@ class Renderer:
         text_rect = text.get_rect(center=(400, 370))
         self.screen.blit(text, text_rect)
 
+    def draw_game_over_or_won(self, won: bool) -> None:
+        """Display the game result and final score."""
+
+        if won:
+            message = "GAME WON"
+            color = (0, 255, 0)
+        else:
+            message = "GAME OVER"
+            color = (255, 0, 0)
+
+        self.draw_text(message, 300, 180, color)
+
+        self.draw_text(
+            f"Final Score: {self.engine.score}",
+            300, 280, (255, 255, 255)
+        )
+
+        self.draw_text(
+            "Press ENTER to continue",
+            260, 380, (255, 255, 0)
+        )
+
     def run(self) -> None:
         running = True
 
@@ -404,26 +472,31 @@ class Renderer:
                         if event.key == pygame.K_DOWN:
                             self.selected_option = (
                                 self.selected_option + 1
-                                ) % 4
+                            ) % 4
 
                         elif event.key == pygame.K_UP:
                             self.selected_option = (
                                 self.selected_option - 1
-                                ) % 4
+                            ) % 4
+
                         elif event.key == pygame.K_RETURN:
                             running = self.activate_menu_option(
                                 self.selected_option
                             )
-                    if (
+
+                    elif (
                         event.type == pygame.MOUSEBUTTONDOWN
                         and event.button == 1
                     ):
                         if self.start_rect.collidepoint(event.pos):
                             running = self.activate_menu_option(0)
+
                         elif self.scores_rect.collidepoint(event.pos):
                             running = self.activate_menu_option(1)
+
                         elif self.instructions_rect.collidepoint(event.pos):
                             running = self.activate_menu_option(2)
+
                         elif self.quit_rect.collidepoint(event.pos):
                             running = self.activate_menu_option(3)
 
@@ -444,40 +517,76 @@ class Renderer:
                         and event.key == pygame.K_ESCAPE
                     ):
                         self.current_screen = "menu"
+
+
                 elif self.current_screen == "playing":
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_ESCAPE:
                             self.current_screen = "menu"
                             self.is_paused = False
 
-                        elif event.key == pygame.K_UP and not self.is_paused:
-                            self.engine.set_direction(Direction.NORTH)
-                            print("UP")
-
-                        elif event.key == pygame.K_DOWN and not self.is_paused:
-                            self.engine.set_direction(Direction.SOUTH)
-                            print("DOWN")
-
-                        elif event.key == pygame.K_LEFT and not self.is_paused:
-                            self.engine.set_direction(Direction.WEST)
-                            print("LEFT")
-
-                        elif event.key == pygame.K_RIGHT and not \
-                                self.is_paused:
-                            self.engine.set_direction(Direction.EAST)
-                            print("RIGHT")
-
                         elif event.key == pygame.K_p:
                             self.is_paused = not self.is_paused
+
                             if self.is_paused:
                                 self.engine.pause_game()
                             else:
                                 self.engine.resume_game()
 
-            # 2. Clear window
+                        elif not self.is_paused:
+                            if event.key in (pygame.K_UP, pygame.K_w):
+                                self.engine.set_direction(Direction.NORTH)
+
+                            elif event.key in (pygame.K_DOWN, pygame.K_s):
+                                self.engine.set_direction(Direction.SOUTH)
+
+                            elif event.key in (pygame.K_LEFT, pygame.K_a):
+                                self.engine.set_direction(Direction.WEST)
+
+                            elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                                self.engine.set_direction(Direction.EAST)
+
+                            elif event.key == pygame.K_1:
+                                self.engine.toggle_invincible()
+
+                            elif event.key == pygame.K_2:
+                                self.engine.toggle_freeze()
+
+                            elif event.key == pygame.K_3:
+                                self.engine.toggle_speed()
+
+                elif self.current_screen in ("game_over", "game_won"):
+                    if (
+                        event.type == pygame.KEYDOWN
+                        and event.key == pygame.K_RETURN
+                    ):
+                        self.final_score = self.engine.score
+                        self.player_name = ""
+                        self.message = ""
+                        self.current_screen = "new_player"
+
+            # 2. Stop immediately if user exits
+            if not running:
+                break
+
+            # 3. Update game timing
+            dt = self.clock.tick(60) / 1000.0
+
+            # 4. Update engine
+            if self.current_screen == "playing" and not self.is_paused:
+                self.engine.dt_update(dt)
+
+                if self.engine.state == GameState.GAME_OVER:
+                    self.current_screen = "game_over"
+                elif self.engine.state == GameState.LEVEL_WON:
+                    self.engine.continue_game()
+                elif self.engine.state == GameState.GAME_WON:
+                    self.current_screen = "game_won"
+
+            # 5. Clear window
             self.screen.fill((0, 0, 0))
 
-            # 3. Draw active screen
+            # 6. Draw active screen
             if self.current_screen == "menu":
                 self.draw_menu()
 
@@ -493,11 +602,13 @@ class Renderer:
             elif self.current_screen == "playing":
                 self.draw_game()
 
-            # 4. Update window
+            elif self.current_screen == "game_over":
+                self.draw_game_over_or_won(False)
+            elif self.current_screen == "game_won":
+                self.draw_game_over_or_won(True)
+
+            # 7. Update display
             pygame.display.update()
-            dt = self.clock.tick(60) / 1000.0
-            if self.current_screen == "playing" and not self.is_paused:
-                self.engine.dt_update(dt)
 
         pygame.quit()
 
