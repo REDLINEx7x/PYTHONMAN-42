@@ -6,7 +6,7 @@ from engine.creatures import Player, Ghost, GhostState
 from engine.snapshot import GameSnapshot
 from engine.grid import Grid
 from engine.adapter import _generate_grid
-
+from engine.errors import EngineError, GridError
 
 MAX_DT = 0.2
 PLAYER_INTERVAL = 0.15
@@ -16,13 +16,13 @@ SPEED_FACTOR = 0.5
 EDIBLE_DURATION = 5.0
 
 
-class GameState(Enum):
+#class GameState(Enum):
 
-    PLAYING = 1
-    PAUSED = 2
-    LEVEL_WON = 3
-    GAME_WON = 4
-    GAME_OVER = 5
+#    PLAYING = 1
+#    PAUSED = 2
+#    LEVEL_WON = 3
+#    GAME_WON = 4
+#    GAME_OVER = 5
 
 class LevelData(NamedTuple):
 
@@ -71,7 +71,7 @@ class Engine:
         else:
             seed = self._rng.randrange(2**32)
         grid = _generate_grid(level_config.width, level_config.height, seed)
-        player = Player(grid.get_center())
+        player = Player(self._find_open_centre(grid))
         corners = grid.get_corners()
         ghosts = [Ghost(spawn_cell=c, home_corner=c) for c in corners]
 
@@ -113,6 +113,11 @@ class Engine:
         dt = min(dt, MAX_DT)
         self.level_timer = max(0.0, self.level_timer - dt)
         self.edible_timer = max(0.0, self.edible_timer - dt)
+
+        if self.edible_timer <= 0:
+            for ghost in self.ghosts:
+                if ghost.state == GhostState.FRIGHTENED:
+                    ghost.change_state(GhostState.CHASE)
         for ghost in self.ghosts:
             ghost.tick_respawn(dt)
         self.player_accumulator += dt
@@ -140,10 +145,10 @@ class Engine:
         if self.state != GameState.PLAYING:
             return
 
-        if self.edible_timer <= 0:
-            for ghost in self.ghosts:
-                if ghost.state == GhostState.FRIGHTENED:
-                    ghost.change_state(GhostState.CHASE)
+        #if self.edible_timer <= 0:
+        #    for ghost in self.ghosts:
+        #        if ghost.state == GhostState.FRIGHTENED:
+        #            ghost.change_state(GhostState.CHASE)
 
         if self._check_win():
             return
@@ -258,6 +263,7 @@ class Engine:
         if self.state == GameState.PAUSED:
             self.state = GameState.PLAYING
 
+
     def _get_reachable_cells(self, grid: Grid, start: Cell) -> set[Cell]:
         reachable: set[Cell] = {start}
         stack: list[Cell] = [start]
@@ -268,7 +274,26 @@ class Engine:
                 if neighbor not in reachable:
                     reachable.add(neighbor)
                     stack.append(neighbor)
-
         return reachable
 
+
+    def _find_open_centre(self, grid) -> Cell:
+
+        center = grid.get_center()
+        if grid.walls_here(center) < 15:
+            return center
+
+        best_cell: Cell | None = None
+        best_distance: int | None = None
+        for cell in grid.get_all_cells():
+            if grid.walls_here(cell) == 15:
+                continue
+            distance = abs(cell.row - center.row) + abs(cell.col - center.col)
+            if best_distance is None or distance < best_distance:
+                best_distance = distance
+                best_cell = cell
+
+        if best_cell is None:
+            raise GridError("Maze has no open cells for Pacu to spawn")
+        return best_cell
 
