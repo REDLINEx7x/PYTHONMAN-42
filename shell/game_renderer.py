@@ -448,7 +448,6 @@ class GameRenderer:
                 ),
             )
 
-
     def draw_ghost_panel(self, ghosts) -> None:
         screen_width, _ = self.screen.get_size()
 
@@ -605,7 +604,7 @@ class GameRenderer:
             key_surface = name_font.render(
                 key, True, (255, 255, 255)
             )
-            
+
             self.screen.blit(
                 key_surface,
                 key_surface.get_rect(center=key_rect.center),
