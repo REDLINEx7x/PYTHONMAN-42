@@ -371,6 +371,84 @@ class GameRenderer:
                 3,
             )
 
+    def draw_controls_bar(self) -> None:
+        # Position below the maze
+        bar_width = min(520, self.maze_box_width)
+        bar_height = 36
+
+        x = self.maze_box_x + (
+            self.maze_box_width - bar_width
+        ) // 2
+        y = (
+            self.maze_box_y
+            + self.maze_box_height
+            + 18
+        )
+
+        bar = pygame.Rect(
+            x, y, bar_width, bar_height
+        )
+
+        # HUD-style background and border
+        pygame.draw.rect(
+            self.screen, (25, 36, 64), bar
+        )
+        pygame.draw.rect(
+            self.screen, (75, 126, 255), bar, 2
+        )
+        pygame.draw.rect(
+            self.screen,
+            (125, 175, 255),
+            (x + 5, y + 4, bar_width - 10, 1),
+        )
+
+        font = pygame.font.Font(None, 22)
+
+        # Small keyboard shortcuts
+        controls = [
+            ("P", "PAUSE"),
+            ("ESC", "RETURN TO MENU"),
+        ]
+
+        centers = [
+            x + bar_width // 4,
+            x + 3 * bar_width // 4,
+        ]
+
+        for (key, label), center_x in zip(
+            controls, centers
+        ):
+            key_surface = font.render(
+                f"[{key}]", True, (255, 216, 75)
+            )
+            label_surface = font.render(
+                label, True, (230, 235, 255)
+            )
+
+            total_width = (
+                key_surface.get_width()
+                + 8
+                + label_surface.get_width()
+            )
+
+            start_x = center_x - total_width // 2
+
+            self.screen.blit(
+                key_surface,
+                (
+                    start_x,
+                    y + (bar_height - key_surface.get_height()) // 2,
+                ),
+            )
+            self.screen.blit(
+                label_surface,
+                (
+                    start_x + key_surface.get_width() + 8,
+                    y + (bar_height - label_surface.get_height()) // 2,
+                ),
+            )
+
+
     def draw_ghost_panel(self, ghosts) -> None:
         screen_width, _ = self.screen.get_size()
 
