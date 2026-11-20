@@ -136,7 +136,10 @@ class Renderer:
             status=snapshot.state.name,
         )
 
-        # Pause overlay
+        # Bottom controls bar: P / ESC
+        self.game_renderer.draw_controls_bar()
+
+        # Pause overlay must be drawn last
         if self.is_paused:
             self.draw_pause()
 
@@ -151,23 +154,182 @@ class Renderer:
         self.screen.blit(surface, (x, y))
 
     def draw_menu(self) -> None:
-        self.screen.blit(self.title, self.title_rect)
-        menu_items = [
-            (self.start_game_text, self.start_rect),
-            (self.high_scores, self.scores_rect),
-            (self.instructions_text, self.instructions_rect),
-            (self.quit_game, self.quit_rect),
-        ]
-        for index, (text, rect) in enumerate(menu_items):
-            self.screen.blit(text, rect)
+        screen_width, screen_height = self.screen.get_size()
 
-            if index == self.selected_option:
-                pygame.draw.rect(
-                    self.screen,
-                    (255, 255, 0),
-                    rect.inflate(20, 10),
-                    2,
+        # Background
+        self.screen.fill((8, 12, 24))
+
+        # Fonts
+        title_font = pygame.font.Font(None, 88)
+        subtitle_font = pygame.font.Font(None, 27)
+        menu_font = pygame.font.Font(None, 36)
+        footer_font = pygame.font.Font(None, 23)
+
+        # Main title
+        title = title_font.render(
+            "PYTHONMAN-42",
+            True,
+            (255, 216, 75),
+        )
+        title_rect = title.get_rect(
+            center=(screen_width // 2, screen_height // 5)
+        )
+        self.screen.blit(title, title_rect)
+
+        # Subtitle
+        subtitle = subtitle_font.render(
+            "A CLASSIC ARCADE ADVENTURE",
+            True,
+            (133, 169, 255),
+        )
+        self.screen.blit(
+            subtitle,
+            subtitle.get_rect(
+                center=(screen_width // 2, title_rect.bottom + 20)
+            ),
+        )
+
+        # Decorative Pac-Man illustration
+        pacman_size = 95
+        pacman = pygame.transform.scale(
+            self.game_renderer.pacman_sprite,
+            (pacman_size, pacman_size),
+        )
+        pacman_rect = pacman.get_rect(
+            center=(screen_width // 2 - 115, screen_height // 3)
+        )
+        self.screen.blit(pacman, pacman_rect)
+
+        # Pac-Gums
+        for index in range(3):
+            pygame.draw.circle(
+                self.screen,
+                (255, 255, 255),
+                (
+                    screen_width // 2 - 30 + index * 40,
+                    screen_height // 3,
+                ),
+                5,
+            )
+
+        # Ghost illustration
+        ghost = pygame.transform.scale(
+            self.game_renderer.ghost_sprites[0],
+            (85, 85),
+        )
+        ghost_rect = ghost.get_rect(
+            center=(screen_width // 2 + 150, screen_height // 3)
+        )
+        self.screen.blit(ghost, ghost_rect)
+
+        # Menu container
+        menu_width = min(460, screen_width - 60)
+        item_height = 62
+        item_gap = 12
+        padding = 22
+
+        menu_height = (
+            4 * item_height + 3 * item_gap + 2 * padding
+        )
+
+        menu_x = (screen_width - menu_width) // 2
+        menu_y = int(screen_height * 0.45)
+
+        container = pygame.Rect(
+            menu_x,
+            menu_y,
+            menu_width,
+            menu_height,
+        )
+
+        pygame.draw.rect(
+            self.screen, (25, 36, 64), container
+        )
+        pygame.draw.rect(
+            self.screen, (75, 126, 255), container, 3
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            (125, 175, 255),
+            (menu_x + 5, menu_y + 5, menu_width - 10, 2),
+        )
+
+        options = [
+            "START GAME",
+            "HIGH SCORES",
+            "INSTRUCTIONS",
+            "QUIT GAME",
+        ]
+
+        for index, option in enumerate(options):
+            item_rect = pygame.Rect(
+                menu_x + padding,
+                menu_y + padding + index * (item_height + item_gap),
+                menu_width - 2 * padding,
+                item_height,
+            )
+
+            selected = index == self.selected_option
+
+            background = (
+                (49, 75, 136)
+                if selected
+                else (17, 27, 50)
+            )
+            border = (
+                (255, 216, 75)
+                if selected
+                else (69, 101, 162)
+            )
+            text_color = (
+                (255, 216, 75)
+                if selected
+                else (230, 235, 255)
+            )
+
+            pygame.draw.rect(
+                self.screen, background, item_rect
+            )
+            pygame.draw.rect(
+                self.screen, border, item_rect, 2
+            )
+
+            text = menu_font.render(
+                option, True, text_color
+            )
+            self.screen.blit(
+                text,
+                text.get_rect(center=item_rect.center),
+            )
+
+            if selected:
+                arrow = menu_font.render(
+                    ">",
+                    True,
+                    (255, 216, 75),
                 )
+                self.screen.blit(
+                    arrow,
+                    (
+                        item_rect.x + 15,
+                        item_rect.centery
+                        - arrow.get_height() // 2,
+                    ),
+                )
+
+        # Navigation instructions
+        footer = footer_font.render(
+            "UP / DOWN  -  NAVIGATE       ENTER  -  SELECT",
+            True,
+            (132, 149, 188),
+        )
+        self.screen.blit(
+            footer,
+            footer.get_rect(
+                center=(screen_width // 2, screen_height - 45)
+            ),
+        )
 
     def draw_highscores(self) -> None:
         heading = self.title_font.render(
@@ -402,40 +564,96 @@ class Renderer:
         self.screen.blit(back_text, back_rect)
 
     def draw_pause(self) -> None:
-        # Semi-transparent dark overlay
-        overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 150))
+        screen_width, screen_height = self.screen.get_size()
+
+        # Dark transparent overlay covering the screen
+        overlay = pygame.Surface(
+            (screen_width, screen_height),
+            pygame.SRCALPHA,
+        )
+        overlay.fill((0, 0, 0, 165))
         self.screen.blit(overlay, (0, 0))
 
-        # PAUSED heading
-        heading = self.title_font.render(
-            "PAUSED", True, (255, 255, 0)
+        # Centered pause panel
+        panel_width = min(460, screen_width - 40)
+        panel_height = min(300, screen_height - 40)
+
+        panel = pygame.Rect(
+            (screen_width - panel_width) // 2,
+            (screen_height - panel_height) // 2,
+            panel_width,
+            panel_height,
         )
-        heading_rect = heading.get_rect(center=(400, 75))
-        self.screen.blit(heading, heading_rect)
+
+        pygame.draw.rect(
+            self.screen, (25, 36, 64), panel
+        )
+        pygame.draw.rect(
+            self.screen, (75, 126, 255), panel, 3
+        )
+        pygame.draw.rect(
+            self.screen,
+            (125, 175, 255),
+            (
+                panel.x + 5,
+                panel.y + 5,
+                panel.width - 10,
+                2,
+            ),
+        )
+
+        # Fonts
+        title_font = pygame.font.Font(None, 52)
+        icon_font = pygame.font.Font(None, 65)
+        text_font = pygame.font.Font(None, 28)
+
+        # PAUSED title
+        title = title_font.render(
+            "PAUSED", True, (255, 216, 75)
+        )
+        self.screen.blit(
+            title,
+            title.get_rect(
+                center=(panel.centerx, panel.y + 55)
+            ),
+        )
 
         # Pause symbol
-        pygame.draw.rect(
-            self.screen, (255, 255, 0),
-            (370, 250, 15, 60)
+        icon = icon_font.render(
+            "II", True, (255, 216, 75)
         )
-        pygame.draw.rect(
-            self.screen, (255, 255, 0),
-            (415, 250, 15, 60)
+        self.screen.blit(
+            icon,
+            icon.get_rect(
+                center=(panel.centerx, panel.y + 125)
+            ),
         )
 
         # Resume instruction
-        text = self.font.render(
-            "Press p to Resume", True, (255, 255, 255)
+        resume = text_font.render(
+            "Press P to Resume",
+            True,
+            (255, 255, 255),
         )
-        self.draw_text(
-            "Press ESC to return to Menu",
-            245,
-            420,
-            (166, 166, 70),
+        self.screen.blit(
+            resume,
+            resume.get_rect(
+                center=(panel.centerx, panel.y + 195)
+            ),
         )
-        text_rect = text.get_rect(center=(400, 370))
-        self.screen.blit(text, text_rect)
+
+        # Return instruction
+        return_text = text_font.render(
+            "Press ESC to Return to Menu",
+            True,
+            (255, 216, 75),
+        )
+        self.screen.blit(
+            return_text,
+            return_text.get_rect(
+                center=(panel.centerx, panel.y + 240)
+            ),
+        )
 
     def draw_game_over_or_won(self, won: bool) -> None:
         """Display the game result and final score."""
