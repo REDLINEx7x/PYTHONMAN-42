@@ -17,7 +17,10 @@ class Renderer:
         pygame.init()
         self.is_paused = False
         self.selected_option = 0
-
+        self.name_cursor_visible = True
+        self.name_cursor_last_toggle = pygame.time.get_ticks()
+        self.name_input_button_rect = None
+        self.result_continue_button_rect = None
         # Configuration
         self.config = config
         self.podium_icons = [
@@ -410,7 +413,7 @@ class Renderer:
 
         board = pygame.Rect(
             (screen_width - board_width) // 2,
-            145,
+            235,
             board_width,
             board_height,
         )
@@ -544,6 +547,7 @@ class Renderer:
                     True,
                     white,
                 )
+
                 self.screen.blit(
                     player_score,
                     player_score.get_rect(
@@ -664,7 +668,7 @@ class Renderer:
         footer = footer_font.render(
             "[ESC]  BACK TO MENU",
             True,
-            gold,
+            (132, 149, 188),
         )
         self.screen.blit(
             footer,
@@ -821,7 +825,7 @@ class Renderer:
         name_label = label_font.render(
             "PLAYER NAME",
             True,
-            white,
+            (171, 66, 34),
         )
         self.screen.blit(
             name_label,
@@ -864,10 +868,16 @@ class Renderer:
             ),
         )
 
-        # Input cursor
+        # Blinking input cursor
+        now = pygame.time.get_ticks()
+
+        if now - self.name_cursor_last_toggle >= 500:
+            self.name_cursor_visible = not self.name_cursor_visible
+            self.name_cursor_last_toggle = now
+
         cursor_x = input_rect.x + 17 + name_text.get_width()
 
-        if cursor_x < input_rect.right - 12:
+        if self.name_cursor_visible and cursor_x < input_rect.right - 12:
             pygame.draw.line(
                 self.screen,
                 gold,
@@ -875,7 +885,6 @@ class Renderer:
                 (cursor_x, input_rect.bottom - 12),
                 2,
             )
-
         # Save button
         button = pygame.Rect(
             panel.centerx - 165,
@@ -883,16 +892,23 @@ class Renderer:
             330,
             45,
         )
+        self.name_input_button_rect = button
+
+        mouse_pos = pygame.mouse.get_pos()
+        hovered = button.collidepoint(mouse_pos)
+
+        button_color = (42, 72, 132) if hovered else (24, 41, 77)
+        border_color = (150, 190, 255) if hovered else blue
 
         pygame.draw.rect(
             self.screen,
-            (24, 41, 77),
+            button_color,
             button,
             border_radius=7,
         )
         pygame.draw.rect(
             self.screen,
-            blue,
+            border_color,
             button,
             2,
             border_radius=7,
@@ -1017,7 +1033,7 @@ class Renderer:
         title = title_font.render("MISSION BRIEFING", True, gold)
         self.screen.blit(
             title,
-            title.get_rect(center=(screen_width // 2, 60)),
+            title.get_rect(center=(screen_width // 2, 155)),
         )
 
         subtitle = subtitle_font.render(
@@ -1027,7 +1043,7 @@ class Renderer:
         )
         self.screen.blit(
             subtitle,
-            subtitle.get_rect(center=(screen_width // 2, 105)),
+            subtitle.get_rect(center=(screen_width // 2, 220)),
         )
 
         # Compact main container
@@ -1036,7 +1052,7 @@ class Renderer:
 
         panel = pygame.Rect(
             (screen_width - panel_width) // 2,
-            145,
+            280,
             panel_width,
             panel_height,
         )
@@ -1079,7 +1095,7 @@ class Renderer:
         ]
 
         for index, line in enumerate(mission_lines):
-            text = body_font.render(line, True, white)
+            text = body_font.render(line, True, (70, 122, 179))
             self.screen.blit(
                 text,
                 (left + 90, mission_y + 35 + index * 24),
@@ -1282,7 +1298,7 @@ class Renderer:
             )
 
         footer = small_font.render(
-            "[ESC]  BACK TO MENU", True, gold
+            "[ESC]  BACK TO MENU", True, (132, 149, 188)
         )
         self.screen.blit(
             footer,
@@ -1445,14 +1461,22 @@ class Renderer:
             2,
         )
 
-        # Result icon (drawn with Pygame)
+        # Result icon
         icon_y = panel.y + 75
 
         if won:
             # Gold trophy cup
-            cup = pygame.Rect(panel.centerx - 25, icon_y - 20, 50, 35)
+            cup = pygame.Rect(
+                panel.centerx - 25,
+                icon_y - 20,
+                50,
+                35,
+            )
             pygame.draw.rect(
-                self.screen, gold, cup, border_radius=6
+                self.screen,
+                gold,
+                cup,
+                border_radius=6,
             )
             pygame.draw.rect(
                 self.screen,
@@ -1465,6 +1489,7 @@ class Renderer:
                 (panel.centerx - 24, icon_y + 32, 48, 7),
                 border_radius=3,
             )
+
         else:
             # Red ghost-like icon
             pygame.draw.circle(
@@ -1506,7 +1531,9 @@ class Renderer:
 
         # Subtitle
         subtitle_text = subtitle_font.render(
-            subtitle, True, muted
+            subtitle,
+            True,
+            muted,
         )
         self.screen.blit(
             subtitle_text,
@@ -1526,7 +1553,9 @@ class Renderer:
 
         # Final score label
         score_label = label_font.render(
-            "FINAL SCORE", True, white
+            "FINAL SCORE",
+            True,
+            white,
         )
         self.screen.blit(
             score_label,
@@ -1537,7 +1566,9 @@ class Renderer:
 
         # Final score value
         score = score_font.render(
-            str(self.engine.score), True, gold
+            str(self.engine.score),
+            True,
+            gold,
         )
         self.screen.blit(
             score,
@@ -1554,22 +1585,43 @@ class Renderer:
             52,
         )
 
+        # Store rectangle for mouse click handling
+        self.result_continue_button_rect = button
+
+        # Detect mouse hover
+        mouse_pos = pygame.mouse.get_pos()
+        hovered = button.collidepoint(mouse_pos)
+
+        if hovered:
+            if won:
+                current_color = (35, 85, 65)
+                current_border = (130, 255, 190)
+            else:
+                current_color = (65, 45, 55)
+                current_border = (255, 180, 190)
+        else:
+            current_color = button_color
+            current_border = accent
+
+        # Draw button using hover-dependent colors
         pygame.draw.rect(
             self.screen,
-            button_color,
+            current_color,
             button,
             border_radius=8,
         )
         pygame.draw.rect(
             self.screen,
-            accent,
+            current_border,
             button,
             2,
             border_radius=8,
         )
 
         button_text = button_font.render(
-            "[ ENTER ]  CONTINUE", True, gold
+            "[ ENTER ]  CONTINUE",
+            True,
+            gold,
         )
         self.screen.blit(
             button_text,
@@ -1636,6 +1688,22 @@ class Renderer:
                     if event.type == pygame.KEYDOWN:
                         self.handle_name_input(event)
 
+                    # NEW: Click SAVE SCORE
+                    elif (
+                        event.type == pygame.MOUSEBUTTONDOWN
+                        and event.button == 1
+                    ):
+                        button = getattr(
+                            self, "name_input_button_rect", None
+                        )
+
+                        if button and button.collidepoint(event.pos):
+                            enter_event = pygame.event.Event(
+                                pygame.KEYDOWN,
+                                {"key": pygame.K_RETURN, "unicode": "\r"},
+                            )
+                            self.handle_name_input(enter_event)
+
                 elif self.current_screen == "instructions":
                     if (
                         event.type == pygame.KEYDOWN
@@ -1688,11 +1756,28 @@ class Renderer:
                                 self.engine.toggle_speed()
 
                 elif self.current_screen in ("game_over", "game_won"):
+                    continue_requested = False
+
                     if (
                         event.type == pygame.KEYDOWN
                         and event.key == pygame.K_RETURN
                     ):
-                        self.final_score = self.engine.score
+                        continue_requested = True
+
+                    # NEW: Click CONTINUE
+                    elif (
+                        event.type == pygame.MOUSEBUTTONDOWN
+                        and event.button == 1
+                    ):
+                        button = getattr(
+                            self, "result_continue_button_rect", None
+                        )
+
+                        if button and button.collidepoint(event.pos):
+                            continue_requested = True
+
+                    if continue_requested:
+                        self.final_score = self.final_score
                         self.player_name = ""
                         self.message = ""
                         self.current_screen = "new_player"
@@ -1715,8 +1800,7 @@ class Renderer:
                 elif self.engine.state == GameState.GAME_WON:
                     self.current_screen = "game_won"
 
-            # 5. Clear window
-            # self.screen.fill((0, 0, 0))
+            # 5. Draw background
             self.draw_background()
 
             # 6. Draw active screen
