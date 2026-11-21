@@ -3,10 +3,12 @@ from engine.grid import Grid
 from engine.models import Cell, Direction
 from pathlib import Path
 from engine.creatures import GhostState
+from engine.gameengine import MAX_LIVES
 
 
 class GameRenderer:
     def __init__(self, screen: pygame.Surface) -> None:
+        self.cheat_rects: dict[int, pygame.Rect] = {}
         self.screen = screen
         self.offset_x = 0
         self.offset_y = 0
@@ -403,7 +405,7 @@ class GameRenderer:
             )
 
             self.screen.blit(sprite, rect)
-        
+
     def draw_supergums(
         self,
         supergums: frozenset[tuple[int, int]],
@@ -600,11 +602,22 @@ class GameRenderer:
             self.screen.blit(name, (x + 75, row_y))
             self.screen.blit(status, (x + 75, row_y + 26))
 
+    def get_clicked_cheat(
+        self,
+        position: tuple[int, int],
+    ) -> int | None:
+        for key, rect in self.cheat_rects.items():
+            if rect.collidepoint(position):
+                return key
+
+        return None
+
     def draw_cheat_panel(
         self,
         invincible: bool,
         freeze: bool,
         speed: bool,
+        lives: int,
     ) -> None:
         screen_width, _ = self.screen.get_size()
 
@@ -615,7 +628,7 @@ class GameRenderer:
             screen_width - 2 * margin - 4 * gap
         ) // 5
 
-        panel_height = self.maze_box_height // 2
+        panel_height = self.maze_box_height
 
         x = margin + 4 * (panel_width + gap)
         y = self.maze_box_y
@@ -647,24 +660,84 @@ class GameRenderer:
             title.get_rect(center=(panel.centerx, y + 25)),
         )
 
+        # Status colors
+        active_color = (73, 229, 139)
+        off_color = (135, 144, 163)
+        ready_color = (255, 216, 75)
+
         cheats = [
-            ("1", "INVINCIBLE", invincible),
-            ("2", "FREEZE GHOSTS", freeze),
-            ("3", "SPEED BOOST", speed),
+            (
+                "1",
+                "INVINCIBLE",
+                "ACTIVE" if invincible else "OFF",
+                active_color if invincible else off_color,
+            ),
+            (
+                "2",
+                "FREEZE GHOSTS",
+                "ACTIVE" if freeze else "OFF",
+                active_color if freeze else off_color,
+            ),
+            (
+                "3",
+                "SPEED BOOST",
+                "ACTIVE" if speed else "OFF",
+                active_color if speed else off_color,
+            ),
+            (
+                "4",
+                "SKIP LEVEL",
+                "READY",
+                ready_color,
+            ),
+            (
+                "5",
+                "EXTRA LIFE",
+                "READY" if lives < MAX_LIVES else "MAX",
+                ready_color if lives < MAX_LIVES else off_color,
+            ),
+            (
+                "6",
+                "RESET CHEATS",
+                "READY",
+                ready_color,
+            ),
         ]
 
         # Distribute cheats vertically inside the panel
         content_top = y + 55
         content_height = max(1, panel_height - 65)
-        row_spacing = content_height / 3
+        row_spacing = content_height / len(cheats)
+        self.cheat_rects.clear()
+        mouse_position = pygame.mouse.get_pos()
+        for index, (
+            key, name, status_text, status_color
+        ) in enumerate(cheats):
 
-        for index, (key, name, active) in enumerate(cheats):
             row_y = int(
                 content_top + (index + 0.5) * row_spacing - 23
             )
+            click_rect = pygame.Rect(
+                x + 10,
+                int(content_top + index * row_spacing),
+                panel_width - 20,
+                max(1, int(row_spacing)),
+            )
+
+            self.cheat_rects[int(key)] = click_rect
+
+            # Highlight the row when the mouse is over it
+            if click_rect.collidepoint(mouse_position):
+                pygame.draw.rect(
+                    self.screen,
+                    (40, 53, 85),
+                    click_rect,
+                    border_radius=5,
+                )
             key_rect = pygame.Rect(
                 x + 15, row_y, 40, 40
             )
+
             pygame.draw.rect(
                 self.screen, (52, 71, 108), key_rect
             )
@@ -685,16 +758,10 @@ class GameRenderer:
                 name, True, (255, 255, 255)
             )
 
-            status_text = "ACTIVE" if active else "OFF"
-            status_color = (
-                (73, 229, 139)
-                if active
-                else (135, 144, 163)
-            )
-
             status_surface = state_font.render(
                 status_text, True, status_color
             )
+
             self.screen.blit(
                 name_surface, (x + 70, row_y)
             )
