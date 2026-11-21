@@ -20,5 +20,3 @@ class GameSnapshot:
     invincible: bool = False
     freeze: bool = False
     speed: bool = False
-    extra_life: bool = False
-    skip_level: bool = False
