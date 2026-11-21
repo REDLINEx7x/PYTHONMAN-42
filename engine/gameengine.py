@@ -62,8 +62,8 @@ class Engine:
         self.speed: bool = False
         self.freeze: bool = False
         self.invincible: bool = False
-        self.skip_level: bool = False
-        self.extra_life: bool = False
+        # self.skip_level: bool = False
+        # self.extra_life: bool = False
 
 
 
@@ -245,8 +245,7 @@ class Engine:
                             invincible=self.invincible,
                             freeze=self.freeze,
                             speed=self.speed,
-                            extra_life=self.extra_life,
-                            skip_level=self.skip_level)
+                            )
 
     def set_direction(self, direction):
         if self.pacu and self.state == GameState.PLAYING:
@@ -274,6 +273,15 @@ class Engine:
         self.supergums.clear()
         self._check_win()
 
+    def reset_cheats(self) -> None:
+        if self.state != GameState.PLAYING:
+            return
+
+        self.invincible = False
+        self.freeze = False
+        self.speed = False
+        if self.lives > 3:
+            self.lives = 3
 
     def pause_game(self):
         if self.state == GameState.PLAYING:
@@ -282,7 +290,6 @@ class Engine:
     def resume_game(self):
         if self.state == GameState.PAUSED:
             self.state = GameState.PLAYING
-
 
     def _get_reachable_cells(self, grid: Grid, start: Cell) -> set[Cell]:
         reachable: set[Cell] = {start}
