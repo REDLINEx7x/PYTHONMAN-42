@@ -1,13 +1,34 @@
 [
     {
-        "name": "winner",
-        "score": 1700
+        "name": "OUTAJAJT",
+        "score": 2000
+    },
+    {
+        "name": "hicham",
+        "score": 1650
+    },
+    {
+        "name": "jkkk",
+        "score": 1540
+    },
+    {
+        "name": "podium",
+        "score": 1500
+    },
+    {
+        "name": "hicham",
+        "score": 1480
+    },
+    {
+        "name": "HICHAM",
+        "score": 1110
     },
     {
         "name": "loser",
         "score": 1100
     },
     {
+<<<<<<< HEAD
         "name": "loser",
         "score": 120
     },
@@ -26,5 +47,17 @@
     {
         "name": "labubu",
         "score": 0
+=======
+        "name": "hicham",
+        "score": 920
+    },
+    {
+        "name": "nnn",
+        "score": 910
+    },
+    {
+        "name": "abdellah",
+        "score": 720
+>>>>>>> 26f29e2 (update highscores.json)
     }
 ]
