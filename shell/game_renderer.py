@@ -14,6 +14,14 @@ class GameRenderer:
         self.cell_size = 25
         self.mouth_animation_speed = 200
 
+        self.ghost_previous_positions = {}
+        self.ghost_target_positions = {}
+        self.ghost_move_starts = {}
+
+        self.ghost_previous_positions = {}
+        self.ghost_target_positions = {}
+        self.ghost_move_starts = {}
+
         self.wall_color = (35, 75, 220)
         self.wall_highlight = (100, 160, 255)
         self.wall_thickness = 5
@@ -230,10 +238,16 @@ class GameRenderer:
                         (x1, y1, highlight, height),
                     )
 
+    def reset_movement_animation(self) -> None:
+
+        self.ghost_previous_positions.clear()
+        self.ghost_target_positions.clear()
+        self.ghost_move_starts.clear()
+
     def draw_pacman(
         self,
-        row: int,
-        col: int,
+        row: float,
+        col: float,
         direction: Direction,
     ) -> None:
         animation_frame = (
@@ -263,6 +277,7 @@ class GameRenderer:
             image,
             (sprite_size, sprite_size),
         )
+
         sprite = pygame.transform.rotate(
             sprite,
             angles.get(direction, 0),
@@ -278,17 +293,21 @@ class GameRenderer:
         rect = sprite.get_rect(
             center=(center_x, center_y)
         )
+
         self.screen.blit(sprite, rect)
 
     def draw_ghosts(
         self,
         ghosts,
         edible_timer: float,
+        move_interval: float,
     ) -> None:
         sprite_size = max(
             1,
             int(min(self.cell_width, self.cell_height)) - 4,
         )
+
+        now = pygame.time.get_ticks()
 
         for index, (position, state) in enumerate(ghosts):
             normal_sprite = self.ghost_sprites[
@@ -300,9 +319,7 @@ class GameRenderer:
 
             elif state == GhostState.FRIGHTENED:
                 if 0 < edible_timer <= 2.0:
-                    flash_frame = (
-                        pygame.time.get_ticks() // 200
-                    ) % 2
+                    flash_frame = (now // 200) % 2
 
                     image = (
                         self.frightened_sprite
@@ -320,11 +337,65 @@ class GameRenderer:
                 (sprite_size, sprite_size),
             )
 
-            center_x = self.offset_x + round(
-                (position.col + 0.5) * self.cell_width
+            # Current position from the engine
+            current_position = (position.row, position.col)
+
+            # Initialize animation for this ghost
+            if index not in self.ghost_target_positions:
+                self.ghost_previous_positions[index] = current_position
+                self.ghost_target_positions[index] = current_position
+                self.ghost_move_starts[index] = now
+
+            # Detect when the ghost changes tile
+            elif current_position != self.ghost_target_positions[index]:
+                previous = self.ghost_target_positions[index]
+
+                distance = (
+                    abs(current_position[0] - previous[0])
+                    + abs(current_position[1] - previous[1])
+                )
+
+                if distance > 1:
+                    # Teleport or respawn: move instantly
+                    self.ghost_previous_positions[index] = current_position
+                else:
+                    # Normal movement: animate one tile
+                    self.ghost_previous_positions[index] = previous
+
+                self.ghost_target_positions[index] = current_position
+                self.ghost_move_starts[index] = now
+
+            # Calculate animation progress
+            elapsed = (
+                now - self.ghost_move_starts[index]
+            ) / 1000.0
+
+            progress = min(1.0, elapsed / move_interval)
+
+            previous_row, previous_col = (
+                self.ghost_previous_positions[index]
             )
+
+            target_row, target_col = (
+                self.ghost_target_positions[index]
+            )
+
+            # Interpolate between two tiles
+            smooth_row = previous_row + (
+                target_row - previous_row
+            ) * progress
+
+            smooth_col = previous_col + (
+                target_col - previous_col
+            ) * progress
+
+            # Convert interpolated tile coordinates to pixels
+            center_x = self.offset_x + round(
+                (smooth_col + 0.5) * self.cell_width
+            )
+
             center_y = self.offset_y + round(
-                (position.row + 0.5) * self.cell_height
+                (smooth_row + 0.5) * self.cell_height
             )
 
             rect = sprite.get_rect(
@@ -332,7 +403,7 @@ class GameRenderer:
             )
 
             self.screen.blit(sprite, rect)
-
+        
     def draw_supergums(
         self,
         supergums: frozenset[tuple[int, int]],
