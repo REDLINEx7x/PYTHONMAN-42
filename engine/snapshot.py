@@ -16,3 +16,9 @@ class GameSnapshot:
     ghosts: List[Tuple[Tuple[int, int], GhostState]]
     pacgums: FrozenSet[Tuple[int, int]]
     supergums: FrozenSet[Tuple[int, int]]
+    edible_timer: float
+    invincible: bool = False
+    freeze: bool = False
+    speed: bool = False
+    extra_life: bool = False
+    skip_level: bool = False

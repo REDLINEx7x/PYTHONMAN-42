@@ -12,8 +12,9 @@ MAX_DT = 0.2
 PLAYER_INTERVAL = 0.15
 GHOST_INTERVAL = 0.2
 GHOST_EDIBLE_INTERVAL = 0.3
-SPEED_FACTOR = 0.5
+SPEED_FACTOR = 1
 EDIBLE_DURATION = 5.0
+MAX_LIVES = 5
 
 
 #class GameState(Enum):
@@ -61,6 +62,9 @@ class Engine:
         self.speed: bool = False
         self.freeze: bool = False
         self.invincible: bool = False
+        self.skip_level: bool = False
+        self.extra_life: bool = False
+
 
 
     def _build_level(self, level: int) -> LevelData:
@@ -138,17 +142,13 @@ class Engine:
 
         if self.freeze:
             self.ghost_accumulator = 0.0
+
         while (self.state == GameState.PLAYING
             and self.ghost_accumulator >= ghost_interval):
             self.ghost_accumulator -= ghost_interval
             self._move_ghosts()
         if self.state != GameState.PLAYING:
             return
-
-        #if self.edible_timer <= 0:
-        #    for ghost in self.ghosts:
-        #        if ghost.state == GhostState.FRIGHTENED:
-        #            ghost.change_state(GhostState.CHASE)
 
         if self._check_win():
             return
@@ -240,7 +240,13 @@ class Engine:
                             pacu_direction=self.pacu.current_direction,
                             ghosts=ghosts_data,
                             pacgums=frozenset(self.pacgums),
-                            supergums=frozenset(self.supergums))
+                            supergums=frozenset(self.supergums),
+                            edible_timer=self.edible_timer,
+                            invincible=self.invincible,
+                            freeze=self.freeze,
+                            speed=self.speed,
+                            extra_life=self.extra_life,
+                            skip_level=self.skip_level)
 
     def set_direction(self, direction):
         if self.pacu and self.state == GameState.PLAYING:
@@ -254,6 +260,20 @@ class Engine:
 
     def toggle_speed(self):
         self.speed = not self.speed
+
+    def add_extra_life(self) -> None:
+        if self.state != GameState.PLAYING:
+            return
+        if self.lives < MAX_LIVES:
+            self.lives += 1
+
+    def skip_level(self) -> None:
+        if self.state != GameState.PLAYING:
+            return
+        self.pacgums.clear()
+        self.supergums.clear()
+        self._check_win()
+
 
     def pause_game(self):
         if self.state == GameState.PLAYING:
