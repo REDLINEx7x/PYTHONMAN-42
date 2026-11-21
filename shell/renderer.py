@@ -172,8 +172,8 @@ class Renderer:
             invincible=self.engine.invincible,
             freeze=self.engine.freeze,
             speed=self.engine.speed,
+            lives=snapshot.lives,
         )
-
         # Top HUD
         self.game_renderer.draw_hud(
             score=snapshot.score,
@@ -1694,6 +1694,34 @@ class Renderer:
 
         return smooth_row, smooth_col
 
+    def activate_cheat(self, key: int) -> None:
+
+        if self.engine.state != GameState.PLAYING:
+            return
+        if self.current_screen != "playing":
+            return
+
+        if self.is_paused:
+            return
+
+        if key == 1:
+            self.engine.toggle_invincible()
+
+        elif key == 2:
+            self.engine.toggle_freeze()
+
+        elif key == 3:
+            self.engine.toggle_speed()
+
+        elif key == 4:
+            self.engine.skip_level()
+
+        elif key == 5:
+            self.engine.add_extra_life()
+
+        elif key == 6:
+            self.engine.reset_cheats()
+
     def run(self) -> None:
         running = True
 
@@ -1777,6 +1805,7 @@ class Renderer:
                         self.current_screen = "menu"
 
                 elif self.current_screen == "playing":
+                    # Keyboard controls
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_ESCAPE:
                             self.current_screen = "menu"
@@ -1815,23 +1844,31 @@ class Renderer:
                                     Direction.EAST
                                 )
 
-                            elif event.key == pygame.K_1:
-                                self.engine.toggle_invincible()
+                            # NEW: Keyboard cheat controls
+                            elif event.key in (
+                                pygame.K_1,
+                                pygame.K_2,
+                                pygame.K_3,
+                                pygame.K_4,
+                                pygame.K_5,
+                                pygame.K_6,
+                            ):
+                                self.activate_cheat(
+                                    event.key - pygame.K_0
+                                )
 
-                            elif event.key == pygame.K_2:
-                                self.engine.toggle_freeze()
+                    # NEW: Mouse cheat controls
+                    elif (
+                        event.type == pygame.MOUSEBUTTONDOWN
+                        and event.button == 1
+                        and not self.is_paused
+                    ):
+                        key = self.game_renderer.get_clicked_cheat(
+                            event.pos
+                        )
 
-                            elif event.key == pygame.K_3:
-                                self.engine.toggle_speed()
-
-                            elif event.key == pygame.K_4:
-                                self.engine.skip_level()
-
-                            elif event.key == pygame.K_5:
-                                self.engine.add_extra_life()
-
-                            elif event.key == pygame.K_6:
-                                self.engine.activate_ghost_hunter()
+                        if key is not None:
+                            self.activate_cheat(key)
 
                 elif self.current_screen in ("game_over", "game_won"):
                     continue_requested = False
@@ -1876,7 +1913,7 @@ class Renderer:
                 elif self.engine.state == GameState.LEVEL_WON:
                     self.engine.continue_game()
 
-                    # NEW: Reset animation for the new level
+                    # Reset animation for the new level
                     self.game_renderer.reset_movement_animation()
 
                 elif self.engine.state == GameState.GAME_WON:
