@@ -9,6 +9,12 @@ from engine.gameengine import Engine
 from engine.models import Direction
 from engine.gameengine import GameState
 from pathlib import Path
+from engine.gameengine import (
+    PLAYER_INTERVAL,
+    SPEED_FACTOR,
+    GHOST_INTERVAL,
+    GHOST_EDIBLE_INTERVAL,
+)
 
 
 class Renderer:
@@ -21,6 +27,7 @@ class Renderer:
         self.name_cursor_last_toggle = pygame.time.get_ticks()
         self.name_input_button_rect = None
         self.result_continue_button_rect = None
+        self.facing_direction = Direction.EAST
         # Configuration
         self.config = config
         self.podium_icons = [
@@ -126,7 +133,6 @@ class Renderer:
 
     def draw_game(self) -> None:
         snapshot = self.engine.get_snapshot()
-        start_row, start_col = snapshot.pacu_position
 
         # Draw maze
         self.game_renderer.draw_maze(self.engine.grid)
@@ -136,16 +142,24 @@ class Renderer:
         self.game_renderer.draw_supergums(snapshot.supergums)
 
         # Draw Pac-Man
+        smooth_row, smooth_col = self.get_player_visual_position()
+
         self.game_renderer.draw_pacman(
-            start_row,
-            start_col,
-            snapshot.pacu_direction,
+            smooth_row,
+            smooth_col,
+            self.facing_direction,
         )
 
         # Draw ghosts
+        ghost_interval = GHOST_INTERVAL
+
+        if self.engine.edible_timer > 0:
+            ghost_interval = GHOST_EDIBLE_INTERVAL
+
         self.game_renderer.draw_ghosts(
             snapshot.ghosts,
             self.engine.edible_timer,
+            ghost_interval,
         )
 
         # Left panel: Ghost Radar
@@ -961,12 +975,22 @@ class Renderer:
     def activate_menu_option(self, option: int) -> bool:
         if option == 0:
             self.start_game()
+
+            # Reset Pac-Man and ghost movement animations
+            self.game_renderer.reset_movement_animation()
+
+            # Reset Pac-Man's facing direction
+            self.facing_direction = Direction.EAST
+
         elif option == 1:
             self.current_screen = "highscores"
+
         elif option == 2:
             self.current_screen = "instructions"
+
         elif option == 3:
             return False
+
         return True
 
     def handle_name_input(self, event: pygame.event.Event) -> None:
@@ -1285,6 +1309,9 @@ class Renderer:
             ("[1]  Invincibility ON/OFF", green),
             ("[2]  Freeze Ghosts ON/OFF", ice_blue),
             ("[3]  Speed Boost ON/OFF", gold),
+            ("[4]  Skip Current Level", (255, 145, 100)),
+            ("[5]  Extra Life +1", (255, 110, 155)),
+            ("[6]  Ghost Hunter", (190, 135, 255)),
         ]
 
         for index, (label, color) in enumerate(abilities):
@@ -1628,6 +1655,45 @@ class Renderer:
             button_text.get_rect(center=button.center),
         )
 
+    def get_player_visual_position(self) -> tuple[float, float]:
+        player = self.engine.pacu
+        grid = self.engine.grid
+
+        current = player.position
+        direction = player.current_direction
+
+        wanted = player.wanted_direction
+
+        if wanted is not None and grid.can_move(current, wanted):
+            direction = wanted
+
+        if direction is None or not grid.can_move(current, direction):
+            return float(current.row), float(current.col)
+
+        next_cell = grid.neighbor(current, direction)
+
+        player_interval = PLAYER_INTERVAL
+        if self.engine.speed:
+            player_interval *= SPEED_FACTOR
+
+        if player_interval <= 0:
+            return float(current.row), float(current.col)
+
+        progress = max(
+            0.0,
+            min(1.0, self.engine.player_accumulator / player_interval),
+        )
+
+        smooth_row = current.row + (
+            next_cell.row - current.row
+        ) * progress
+
+        smooth_col = current.col + (
+            next_cell.col - current.col
+        ) * progress
+
+        return smooth_row, smooth_col
+
     def run(self) -> None:
         running = True
 
@@ -1688,7 +1754,6 @@ class Renderer:
                     if event.type == pygame.KEYDOWN:
                         self.handle_name_input(event)
 
-                    # NEW: Click SAVE SCORE
                     elif (
                         event.type == pygame.MOUSEBUTTONDOWN
                         and event.button == 1
@@ -1727,21 +1792,25 @@ class Renderer:
 
                         elif not self.is_paused:
                             if event.key in (pygame.K_UP, pygame.K_w):
+                                self.facing_direction = Direction.NORTH
                                 self.engine.set_direction(
                                     Direction.NORTH
                                 )
 
                             elif event.key in (pygame.K_DOWN, pygame.K_s):
+                                self.facing_direction = Direction.SOUTH
                                 self.engine.set_direction(
                                     Direction.SOUTH
                                 )
 
                             elif event.key in (pygame.K_LEFT, pygame.K_a):
+                                self.facing_direction = Direction.WEST
                                 self.engine.set_direction(
                                     Direction.WEST
                                 )
 
                             elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                                self.facing_direction = Direction.EAST
                                 self.engine.set_direction(
                                     Direction.EAST
                                 )
@@ -1755,6 +1824,15 @@ class Renderer:
                             elif event.key == pygame.K_3:
                                 self.engine.toggle_speed()
 
+                            elif event.key == pygame.K_4:
+                                self.engine.skip_level()
+
+                            elif event.key == pygame.K_5:
+                                self.engine.add_extra_life()
+
+                            elif event.key == pygame.K_6:
+                                self.engine.activate_ghost_hunter()
+
                 elif self.current_screen in ("game_over", "game_won"):
                     continue_requested = False
 
@@ -1764,7 +1842,6 @@ class Renderer:
                     ):
                         continue_requested = True
 
-                    # NEW: Click CONTINUE
                     elif (
                         event.type == pygame.MOUSEBUTTONDOWN
                         and event.button == 1
@@ -1777,7 +1854,7 @@ class Renderer:
                             continue_requested = True
 
                     if continue_requested:
-                        self.final_score = self.final_score
+                        self.final_score = self.engine.score
                         self.player_name = ""
                         self.message = ""
                         self.current_screen = "new_player"
@@ -1795,8 +1872,13 @@ class Renderer:
 
                 if self.engine.state == GameState.GAME_OVER:
                     self.current_screen = "game_over"
+
                 elif self.engine.state == GameState.LEVEL_WON:
                     self.engine.continue_game()
+
+                    # NEW: Reset animation for the new level
+                    self.game_renderer.reset_movement_animation()
+
                 elif self.engine.state == GameState.GAME_WON:
                     self.current_screen = "game_won"
 
